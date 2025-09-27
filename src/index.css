@@ -1,0 +1,37 @@
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #1a202c;
+  color: white;
+}
+
+.message {
+  background: #2d3748;
+  margin: 10px 0;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.user-message {
+  background: #3182ce;
+  text-align: right;
+}
+
+button {
+  background: #3182ce;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+input {
+  padding: 10px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  width: 70%;
+}
