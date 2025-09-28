@@ -1,4 +1,4 @@
-imort React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 const App = () => {
@@ -11,7 +11,8 @@ const App = () => {
   const [conversationActive, setConversationActive] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [showAbout, setShowAbout] = useState(false);
-  const [iosInitialized, setIosInitialized] = useState(false);
+  const [voiceReady, setVoiceReady] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(null);
   
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
@@ -20,44 +21,142 @@ const App = () => {
   // Récupération sécurisée de la clé API
   const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
-  // Configuration spécifique iOS/iPad
-  useEffect(() => {
-    // Détection iOS/iPad
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    
-    if (isIOS) {
-      // Fix CSS pour iOS
-      document.body.style.position = 'relative';
-      document.body.style.overflow = 'auto';
-      document.body.style.height = '100vh';
-      document.body.style.webkitOverflowScrolling = 'touch';
-      
-      // Initialisation synthèse vocale iOS
-      const initIOS = () => {
-        if (!iosInitialized) {
-          const utterance = new SpeechSynthesisUtterance('');
-          utterance.volume = 0.01;
-          speechSynthesis.speak(utterance);
-          setIosInitialized(true);
+  // Détection du navigateur et plateforme
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isIPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // NOUVELLE FONCTION : Sélection intelligente de la voix française
+  const initializeFrenchVoice = () => {
+    if ('speechSynthesis' in window) {
+      const loadVoices = () => {
+        const voices = speechSynthesis.getVoices();
+        console.log('Voix disponibles:', voices.map(v => `${v.name} (${v.lang})`));
+        
+        // Priorité des voix françaises pour iOS/Safari
+        const frenchVoicePriority = [
+          'Amélie',           // Voix française iOS premium
+          'Thomas',           // Voix française iOS homme
+          'Audrey',          // Voix française iOS femme
+          'Virginie',        // Voix française alternative
+          'Samantha',        // Voix anglaise de qualité en fallback
+          'Karen',           // Voix anglaise alternative
+        ];
+        
+        let bestVoice = null;
+        
+        // 1. Chercher les voix françaises natives
+        for (const voiceName of frenchVoicePriority) {
+          const voice = voices.find(v => 
+            v.name.includes(voiceName) && 
+            (v.lang.startsWith('fr') || voiceName === 'Samantha' || voiceName === 'Karen')
+          );
+          if (voice) {
+            bestVoice = voice;
+            break;
+          }
+        }
+        
+        // 2. Si pas de voix prioritaire, chercher toute voix française
+        if (!bestVoice) {
+          bestVoice = voices.find(v => v.lang.startsWith('fr-'));
+        }
+        
+        // 3. Fallback vers voix de qualité en anglais
+        if (!bestVoice) {
+          bestVoice = voices.find(v => 
+            v.lang.startsWith('en-') && 
+            (v.name.includes('Samantha') || v.name.includes('Karen') || v.name.includes('Alex'))
+          );
+        }
+        
+        // 4. Dernière option : première voix disponible
+        if (!bestVoice && voices.length > 0) {
+          bestVoice = voices[0];
+        }
+        
+        if (bestVoice) {
+          setSelectedVoice(bestVoice);
+          setVoiceReady(true);
+          console.log('Voix sélectionnée:', bestVoice.name, bestVoice.lang);
         }
       };
-      
-      // Initialiser au premier clic
-      document.addEventListener('touchstart', initIOS, { once: true });
-      document.addEventListener('click', initIOS, { once: true });
-    }
-  }, [iosInitialized]);
 
-  // Configuration de la reconnaissance vocale
+      // Charger les voix immédiatement
+      loadVoices();
+      
+      // Et aussi écouter l'événement de changement des voix (important pour iOS)
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    }
+  };
+
+  // NOUVELLE FONCTION : Synthèse vocale optimisée pour iOS
+  const speakText = (text) => {
+    if (!speechEnabled || !voiceReady) return;
+    
+    // Arrêter toute synthèse en cours
+    speechSynthesis.cancel();
+    
+    // Créer l'utterance avec configuration optimisée
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Appliquer la voix sélectionnée
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+    
+    // Configuration optimisée pour iOS
+    utterance.lang = selectedVoice?.lang || 'fr-FR';
+    utterance.rate = 0.85;  // Vitesse plus naturelle
+    utterance.pitch = 1.0;  // Pitch normal
+    utterance.volume = 1.0; // Volume maximum
+    
+    // Événements de débogage
+    utterance.onstart = () => {
+      console.log('Synthèse démarrée avec:', selectedVoice?.name || 'voix par défaut');
+    };
+    
+    utterance.onend = () => {
+      console.log('Synthèse terminée');
+    };
+    
+    utterance.onerror = (event) => {
+      console.warn('Erreur synthèse:', event.error);
+    };
+    
+    // Lancer la synthèse avec délai pour iOS Safari
+    if (isIOS && isSafari) {
+      setTimeout(() => {
+        speechSynthesis.speak(utterance);
+      }, 100);
+    } else {
+      speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Configuration de la reconnaissance vocale avec adaptations iOS
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // Initialiser la voix française
+    initializeFrenchVoice();
+    
+    // Configuration reconnaissance vocale
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
       
-      recognitionRef.current.continuous = true;
+      // Configuration adaptée pour iOS/Safari
+      recognitionRef.current.continuous = !isIPad; // iPad fonctionne mieux en mode non-continu
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'fr-FR';
       recognitionRef.current.maxAlternatives = 1;
+      
+      // Configuration spécifique iOS
+      if (isIOS) {
+        recognitionRef.current.serviceURI = null; // Utiliser le service par défaut iOS
+      }
 
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
@@ -73,6 +172,8 @@ const App = () => {
           clearTimeout(silenceTimerRef.current);
           
           if (isListeningRef.current && !isProcessing) {
+            const silenceDelay = isIPad ? 3000 : 2000; // Plus long pour iPad
+            
             silenceTimerRef.current = setTimeout(() => {
               if (isListeningRef.current && !isProcessing && finalTranscript.trim()) {
                 setIsListening(false);
@@ -92,7 +193,7 @@ const App = () => {
                   handleSpeechSubmit(finalTranscript.trim());
                 }, 100);
               }
-            }, 2500); // Augmenté pour iOS
+            }, silenceDelay);
           }
         }
       };
@@ -102,6 +203,14 @@ const App = () => {
         setIsListening(false);
         isListeningRef.current = false;
         setConnectionStatus('error');
+        
+        // Messages d'erreur spécifiques
+        if (event.error === 'not-allowed') {
+          alert('Autorisez l\'accès au microphone dans les réglages de votre navigateur.');
+        } else if (event.error === 'no-speech') {
+          console.log('Aucune parole détectée');
+        }
+        
         setTimeout(() => setConnectionStatus('connected'), 5000);
       };
 
@@ -112,39 +221,31 @@ const App = () => {
       };
 
       recognitionRef.current.onstart = () => {
-        console.log('Reconnaissance vocale démarrée');
+        console.log('Reconnaissance vocale démarrée sur:', navigator.userAgent.includes('iPad') ? 'iPad' : 'autre appareil');
       };
+    } else {
+      console.warn('Reconnaissance vocale non supportée');
+      setConnectionStatus('error');
     }
-  }, [isProcessing]);
+  }, [isProcessing, isIPad]);
 
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else if (!isProcessing) {
-      startListening();
-    }
-  };
-
+  // FONCTION AMÉLIORÉE : Démarrage de l'écoute avec gestion iOS
   const startListening = () => {
     if (recognitionRef.current && !isListening && !isProcessing) {
-      // Initialisation spécifique iOS avant de démarrer
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-      
-      if (isIOS && !iosInitialized) {
-        const utterance = new SpeechSynthesisUtterance('');
-        utterance.volume = 0.01;
-        speechSynthesis.speak(utterance);
-        setIosInitialized(true);
-      }
-      
-      navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      })
-        .then(() => {
+      // Demande de permission avec gestion d'erreur
+      const requestMicrophone = async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+          
+          // Fermer le stream immédiatement, on ne fait que tester la permission
+          stream.getTracks().forEach(track => track.stop());
+          
           setIsListening(true);
           isListeningRef.current = true;
           setTranscript('');
@@ -156,18 +257,41 @@ const App = () => {
             console.error('Erreur démarrage reconnaissance:', error);
             setIsListening(false);
             isListeningRef.current = false;
+            
+            if (error.name === 'InvalidStateError') {
+              // Réessayer après un court délai
+              setTimeout(() => {
+                try {
+                  recognitionRef.current.start();
+                  setIsListening(true);
+                  isListeningRef.current = true;
+                } catch (retryError) {
+                  console.error('Erreur lors du retry:', retryError);
+                }
+              }, 100);
+            }
           }
-        })
-        .catch(error => {
+        } catch (error) {
           console.error('Permission microphone refusée:', error);
           setConnectionStatus('error');
           
-          const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-          const message = isIOS 
-            ? "Pour utiliser la fonction vocale sur iOS, autorisez l'accès au microphone dans Réglages > Safari > Microphone."
-            : "Pour utiliser la fonction vocale, autorisez l'accès au microphone.";
-          alert(message);
-        });
+          if (isIOS) {
+            alert("Pour utiliser la fonction vocale sur iOS, autorisez l'accès au microphone dans Réglages > Safari > Microphone.");
+          } else {
+            alert("Pour utiliser la fonction vocale, autorisez l'accès au microphone.");
+          }
+        }
+      };
+      
+      requestMicrophone();
+    }
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else if (!isProcessing) {
+      startListening();
     }
   };
 
@@ -258,36 +382,10 @@ const App = () => {
       setResponse(aiResponse);
       setConversationHistory(prev => [...prev, assistantMessage]);
 
-      // SYNTHÈSE VOCALE OPTIMISÉE POUR iOS
-      if (speechEnabled) {
-        console.log('Lecture audio avec synthèse native...');
-        
-        // Arrêter toute synthèse en cours
-        speechSynthesis.cancel();
-        
-        // Attendre un peu pour iOS
-        setTimeout(() => {
-          const utterance = new SpeechSynthesisUtterance(aiResponse);
-          utterance.lang = 'fr-FR';
-          utterance.rate = 0.8; // Plus lent pour iOS
-          utterance.pitch = 1.0;
-          utterance.volume = 1.0;
-          
-          // Événements de synthèse
-          utterance.onstart = () => console.log('Synthèse vocale démarrée');
-          utterance.onend = () => console.log('Synthèse vocale terminée');
-          utterance.onerror = (error) => console.warn('Erreur synthèse vocale:', error);
-          
-          // iOS nécessite une voix spécifique parfois
-          const voices = speechSynthesis.getVoices();
-          const frenchVoice = voices.find(voice => voice.lang.startsWith('fr'));
-          if (frenchVoice) {
-            utterance.voice = frenchVoice;
-          }
-          
-          // Lancer la synthèse
-          speechSynthesis.speak(utterance);
-        }, 100);
+      // SYNTHÈSE VOCALE AMÉLIORÉE avec voix française sélectionnée
+      if (speechEnabled && voiceReady) {
+        console.log('Lecture avec voix sélectionnée:', selectedVoice?.name);
+        speakText(aiResponse);
       }
 
     } catch (error) {
@@ -331,6 +429,11 @@ const App = () => {
         timestamp: Date.now()
       };
       setConversationHistory([assistantMessage]);
+      
+      // Lire le message de bienvenue
+      if (speechEnabled && voiceReady) {
+        setTimeout(() => speakText(welcomeMessage), 500);
+      }
     }, 500);
   };
 
@@ -380,64 +483,64 @@ const App = () => {
   const quickActions = [
     { 
       text: "Problème masque", 
-      color: "bg-gradient-to-br from-red-500 to-red-600",
+      color: "bg-gradient-special-red",
       question: "J'ai des problèmes de fuite avec mon masque PPC"
     },
     { 
       text: "Machine bruyante", 
-      color: "bg-gradient-to-br from-orange-500 to-orange-600",
+      color: "bg-gradient-special-orange",
       question: "Ma machine PPC fait du bruit anormal"
     },
     { 
       text: "Entretien & nettoyage", 
-      color: "bg-gradient-to-br from-blue-500 to-blue-600",
+      color: "bg-gradient-special-blue",
       question: "Comment bien nettoyer ma machine PPC ?"
     },
     { 
       text: "Confort sommeil", 
-      color: "bg-gradient-to-br from-purple-500 to-purple-600",
+      color: "bg-gradient-special-purple",
       question: "Comment améliorer mon confort avec la PPC ?"
     },
   ];
 
-  // Support de la reconnaissance vocale
-  const speechRecognitionSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white">
+    <div className="min-h-screen text-white">
       {/* Header */}
-      <div className="p-4 sm:p-6">
-        <div className="flex items-center justify-between max-w-5xl mx-auto">
+      <div className="p-6">
+        <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div className="flex items-center space-x-3">
             {conversationActive && (
               <button
                 onClick={returnToHome}
-                className="bg-red-500 hover:bg-red-600 p-3 sm:p-4 rounded-full transition-all transform hover:scale-105 shadow-lg mr-2 sm:mr-4"
+                className="bg-red-500 hover:bg-red-600 p-4 rounded-full transition-all transform hover:scale-105 shadow-lg mr-2"
                 title="Retour à l'accueil"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white sm:w-6 sm:h-6">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
                   <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m0 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10m-9 4h2m2-6a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V8a2 2 0 012-2z" stroke="currentColor" strokeWidth="2"/>
                 </svg>
               </button>
             )}
             
-            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center bg-white/10">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/10">
               <img 
                 src="/logo_domtech.png" 
                 alt="Dom Tech & Services" 
-                className="w-8 h-8 sm:w-12 sm:h-12 object-contain"
+                className="w-8 h-8 object-contain"
               />
             </div>
             <div>
-              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold">PPCare Voice</h1>
-              <p className="text-green-300 text-xs sm:text-sm">Dom Tech & Services • iOS Optimisé</p>
+              <h1 className="text-2xl font-bold">PPCare Voice</h1>
+              <p className="text-green-400 text-xs">
+                Dom Tech & Services • iOS Optimisé • 
+                {selectedVoice ? ` Voix: ${selectedVoice.name}` : ' Chargement voix...'}
+              </p>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowAbout(true)}
-              className="px-2 py-1 sm:px-4 sm:py-2 rounded-full text-white transition-all hover:scale-105 text-xs sm:text-sm"
+              className="px-4 py-2 rounded-full text-white transition-all hover:scale-105"
               style={{
                 background: 'linear-gradient(135deg, #4ade80 0%, #059669 100%)',
                 border: '1px solid #34d399'
@@ -446,7 +549,7 @@ const App = () => {
               À propos
             </button>
             
-            <div className={`flex items-center space-x-1 sm:space-x-2 px-2 py-1 sm:px-3 sm:py-2 rounded-full text-xs ${
+            <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm ${
               connectionStatus === 'connected' 
                 ? 'bg-green-500/20 text-green-400' 
                 : 'bg-red-500/20 text-red-400'
@@ -454,21 +557,19 @@ const App = () => {
               <div className={`w-2 h-2 rounded-full ${
                 connectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'
               } animate-pulse`}></div>
-              <span className="hidden sm:inline text-xs">
-                {connectionStatus === 'connected' ? 'OpenAI OK' : 'Erreur'}
-              </span>
+              <span>{connectionStatus === 'connected' ? 'Connecté' : 'Erreur'}</span>
             </div>
             
             <button
               onClick={() => setSpeechEnabled(!speechEnabled)}
-              className={`p-2 sm:p-4 rounded-full transition-all ${
+              className={`p-4 rounded-full transition-all ${
                 speechEnabled 
                   ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
                   : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
               }`}
-              title={speechEnabled ? 'Audio activé' : 'Audio désactivé'}
+              title={speechEnabled ? `Voix: ${selectedVoice?.name || 'Par défaut'}` : 'Synthèse désactivée'}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="sm:w-5 sm:h-5">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" strokeWidth="2"/>
                 {speechEnabled ? (
                   <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" strokeWidth="2"/>
@@ -484,38 +585,33 @@ const App = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto px-6">
         {/* Indication de configuration */}
         <div className={`border rounded-xl p-4 mb-6 ${
           OPENAI_API_KEY 
             ? 'bg-green-900/20 border-green-500/30' 
             : 'bg-red-900/20 border-red-500/30'
         }`}>
-          <h3 className={`font-semibold mb-2 text-sm sm:text-base ${
-            OPENAI_API_KEY ? 'text-green-300' : 'text-red-300'
+          <h3 className={`font-semibold mb-2 ${
+            OPENAI_API_KEY ? 'text-green-400' : 'text-red-400'
           }`}>
             {OPENAI_API_KEY ? '✅ Configuration OK' : '❌ Configuration requise'}
           </h3>
-          <p className={`text-xs sm:text-sm ${
+          <p className={`text-sm ${
             OPENAI_API_KEY ? 'text-green-200' : 'text-red-200'
           }`}>
             {OPENAI_API_KEY 
-              ? 'Application prête. Optimisée pour iPhone et iPad Safari.'
-              : 'Configurez la variable REACT_APP_OPENAI_API_KEY dans Vercel.'
+              ? `Clé API configurée. Voix: ${selectedVoice?.name || 'Chargement...'} • Plateforme: ${isIPad ? 'iPad' : isIOS ? 'iPhone' : 'Autre'}`
+              : 'Configurez la variable d\'environnement REACT_APP_OPENAI_API_KEY dans Vercel.'
             }
           </p>
-          {!speechRecognitionSupported && (
-            <p className="text-yellow-200 text-xs mt-2">
-              ⚠️ La reconnaissance vocale n'est pas supportée sur cet appareil.
-            </p>
-          )}
         </div>
 
         {!conversationActive ? (
-          <div className="text-center py-6 sm:py-12">
-            <div className="mb-6 sm:mb-12">
-              <div className="w-20 h-20 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-8 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center relative">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-white sm:w-16 sm:h-16">
+          <div className="text-center py-12">
+            <div className="mb-12">
+              <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center relative">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="text-white">
                   <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/>
                   <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2"/>
                   <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
@@ -524,89 +620,90 @@ const App = () => {
                 <div className="absolute inset-0 rounded-full bg-blue-400/30 animate-ping"></div>
               </div>
               
-              <h2 className="text-xl sm:text-3xl lg:text-4xl font-bold mb-4">PPCare Voice</h2>
-              <p className="text-sm sm:text-xl text-blue-200 mb-4 sm:mb-8 max-w-3xl mx-auto leading-relaxed px-4">
-                Assistant vocal PPC optimisé pour iPhone et iPad Safari.
+              <h2 className="text-4xl font-bold mb-4">PPCare Voice</h2>
+              <p className="text-xl text-blue-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+                Assistant vocal PPC optimisé iOS avec synthèse vocale française de qualité.
               </p>
               
               <button
                 onClick={startConversation}
-                disabled={!OPENAI_API_KEY}
-                className={`px-4 sm:px-8 py-3 sm:py-5 rounded-full text-sm sm:text-xl font-medium transition-all transform shadow-lg ${
-                  OPENAI_API_KEY 
-                    ? 'hover:scale-105 border-green-400' 
+                disabled={!OPENAI_API_KEY || !voiceReady}
+                className={`px-8 py-4 rounded-full text-xl font-medium transition-all transform shadow-lg ${
+                  OPENAI_API_KEY && voiceReady
+                    ? 'hover:scale-105 bg-gradient-from-green-500 to-green-600 border-green-400' 
                     : 'opacity-50 cursor-not-allowed bg-gray-500'
                 }`}
                 style={{
-                  background: OPENAI_API_KEY ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
-                  border: OPENAI_API_KEY ? '2px solid #34d399' : undefined
+                  background: (OPENAI_API_KEY && voiceReady) ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
+                  border: (OPENAI_API_KEY && voiceReady) ? '2px solid #34d399' : undefined
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="inline mr-2 sm:mr-3 sm:w-6 sm:h-6">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="inline mr-3">
                   <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/>
                   <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2"/>
                   <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
                   <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                {OPENAI_API_KEY ? 'Commencer' : 'Config requise'}
+                {OPENAI_API_KEY && voiceReady ? 'Commencer la conversation' : 'Chargement...'}
               </button>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
               {quickActions.map((action, index) => (
                 <button
                   key={index}
-                  className={`${action.color} p-4 sm:p-8 rounded-2xl cursor-pointer hover:scale-105 transition-transform shadow-lg text-left ${
-                    !OPENAI_API_KEY ? 'opacity-50 cursor-not-allowed' : ''
+                  className={`${action.color} p-6 rounded-2xl cursor-pointer hover:scale-105 transition-transform shadow-lg text-left ${
+                    !OPENAI_API_KEY || !voiceReady ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  onClick={() => OPENAI_API_KEY && handleQuickAction(action.question)}
-                  disabled={!OPENAI_API_KEY}
-                  style={{ minHeight: '80px' }}
+                  onClick={() => (OPENAI_API_KEY && voiceReady) && handleQuickAction(action.question)}
+                  disabled={!OPENAI_API_KEY || !voiceReady}
+                  style={{ minHeight: '120px' }}
                 >
-                  <p className="text-white text-xs sm:text-base font-medium text-center">{action.text}</p>
+                  <p className="text-white text-sm font-medium text-center">{action.text}</p>
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 text-center">
-              <div className="bg-white/5 backdrop-blur rounded-xl p-3 sm:p-6">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-blue-400 mx-auto mb-2 sm:w-8 sm:h-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-blue-400 mx-auto mb-2">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="2"/>
                   <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="2"/>
                   <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                <p className="text-sm sm:text-xl font-bold text-white">Frontend</p>
-                <p className="text-blue-200 text-xs sm:text-sm">Pas de serveur</p>
+                <p className="text-xl font-bold text-white">iOS Optimisé</p>
+                <p className="text-blue-200 text-sm">iPhone & iPad</p>
               </div>
-              <div className="bg-white/5 backdrop-blur rounded-xl p-3 sm:p-6">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-green-400 mx-auto mb-2 sm:w-8 sm:h-8">
+              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-green-400 mx-auto mb-2">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="2"/>
                   <path d="M17 13v6l-5 2-5-2v-6" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                <p className="text-sm sm:text-xl font-bold text-white">iOS Ready</p>
-                <p className="text-blue-200 text-xs sm:text-sm">Safari optimisé</p>
+                <p className="text-xl font-bold text-white">Voix française</p>
+                <p className="text-blue-200 text-sm">Qualité premium</p>
               </div>
-              <div className="bg-white/5 backdrop-blur rounded-xl p-3 sm:p-6">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-yellow-400 mx-auto mb-2 sm:w-8 sm:h-8">
+              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-yellow-400 mx-auto mb-2">
                   <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/>
                 </svg>
-                <p className="text-sm sm:text-xl font-bold text-white">Sécurisé</p>
-                <p className="text-blue-200 text-xs sm:text-sm">API protégée</p>
+                <p className="text-xl font-bold text-white">100% Frontend</p>
+                <p className="text-blue-200 text-sm">Sécurisé Vercel</p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="py-4 sm:py-6">
-            <div className="bg-white/5 backdrop-blur rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 min-h-[250px] max-h-[350px] overflow-y-auto">
+          // Interface de conversation
+          <div className="py-6">
+            <div className="bg-white/5 backdrop-blur rounded-2xl p-6 mb-6 min-h-[400px] max-h-[500px] overflow-y-auto">
               {conversationHistory.length === 0 ? (
                 <div className="text-center text-blue-200 py-8">
                   <p>Conversation initialisée...</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {conversationHistory.map((msg, index) => (
                     <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] p-3 sm:p-4 rounded-2xl ${
+                      <div className={`lg:max-w-md p-4 rounded-2xl ${
                         msg.type === 'user' 
                           ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' 
                           : 'bg-white/10 text-white backdrop-blur'
@@ -616,7 +713,7 @@ const App = () => {
                             {formatTime(msg.timestamp)}
                           </span>
                         </div>
-                        <p className="leading-relaxed text-sm sm:text-base">{msg.content}</p>
+                        <p className="leading-relaxed">{msg.content}</p>
                       </div>
                     </div>
                   ))}
@@ -627,36 +724,36 @@ const App = () => {
             {transcript && (
               <div className="bg-blue-500/20 backdrop-blur rounded-xl p-4 mb-4 border border-blue-400/30">
                 <p className="text-blue-400 text-sm font-medium mb-2">Je vous écoute...</p>
-                <p className="text-white text-sm sm:text-base leading-relaxed">{transcript}</p>
+                <p className="text-white leading-relaxed">{transcript}</p>
               </div>
             )}
 
             <div className="text-center">
               {isProcessing ? (
                 <div className="py-6">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
                     <div className="flex space-x-1">
-                      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-3 h-3 bg-white rounded-full animate-bounce"></div>
+                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
-                  <p className="text-blue-200 text-sm sm:text-base">L'assistant réfléchit...</p>
+                  <p className="text-blue-200">L'assistant réfléchit...</p>
                 </div>
               ) : (
                 <div className="py-4">
                   <button
                     onClick={toggleListening}
-                    disabled={!OPENAI_API_KEY || !speechRecognitionSupported}
-                    className={`w-20 h-20 sm:w-28 sm:h-28 rounded-full transition-all transform shadow-2xl ${
-                      !OPENAI_API_KEY || !speechRecognitionSupported
+                    disabled={!OPENAI_API_KEY}
+                    className={`w-24 h-24 rounded-full transition-all transform shadow-2xl ${
+                      !OPENAI_API_KEY 
                         ? 'bg-gray-500 opacity-50 cursor-not-allowed'
                         : isListening 
                           ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-110' 
                           : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:scale-105'
                     }`}
                   >
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-white mx-auto sm:w-14 sm:h-14">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="text-white mx-auto">
                       <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/>
                       <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2"/>
                       <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
@@ -665,16 +762,19 @@ const App = () => {
                   </button>
                   
                   <div className="mt-4">
-                    <p className="text-sm sm:text-lg text-blue-200 font-medium">
+                    <p className="text-lg text-blue-200 font-medium">
                       {!OPENAI_API_KEY 
                         ? 'Configuration requise'
-                        : !speechRecognitionSupported
-                          ? 'Reconnaissance vocale non supportée'
-                          : isListening 
-                            ? 'Je vous écoute...' 
-                            : 'Touchez pour parler'
+                        : isListening 
+                          ? 'Je vous écoute...' 
+                          : 'Cliquez pour parler'
                       }
                     </p>
+                    {isIPad && (
+                      <p className="text-sm text-yellow-400 mt-2">
+                        Mode iPad détecté - Parlez clairement et attendez 3 secondes
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -686,21 +786,21 @@ const App = () => {
                     setTranscript('');
                     speechSynthesis.cancel();
                   }}
-                  className="px-4 py-2 sm:px-6 sm:py-3 rounded-full text-white transition-colors text-sm sm:text-base"
+                  className="px-6 py-3 rounded-full text-white transition-colors"
                   style={{
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     border: '1px solid #34d399'
                   }}
                 >
-                  {isListening ? 'Arrêter' : 'Effacer & Stop audio'}
+                  {isListening ? 'Arrêter l\'écoute' : 'Effacer & Arrêter audio'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        <div className="text-center text-blue-300 text-xs py-4 border-t border-white/10">
-          <p>PPCare Voice - iOS/iPad Optimisé • OpenAI Sécurisé • Synthèse native</p>
+        <div className="text-center text-blue-200 text-xs py-4 border-t border-white/10">
+          <p>PPCare Voice - Version iOS Optimisée • Voix française: {selectedVoice?.name || 'Chargement...'}</p>
           <p>Développé par Dom Tech & Services</p>
         </div>
       </div>
@@ -709,4 +809,3 @@ const App = () => {
 };
 
 export default App;
-
