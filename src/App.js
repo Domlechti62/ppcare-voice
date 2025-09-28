@@ -14,19 +14,43 @@ const App = () => {
   const [voiceInfo, setVoiceInfo] = useState('Chargement...');
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(null);
-  const [isSpeaking, setIsSpeaking] = useState(false); // NOUVEAU: État de synthèse vocale
-  const [azureVoice, setAzureVoice] = useState('fr-FR-DeniseNeural'); // NOUVEAU: Sélecteur voix Azure
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [azureVoice, setAzureVoice] = useState('fr-FR-DeniseNeural');
   
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
   const isListeningRef = useRef(false);
 
-  // NOUVEAU: Voix féminines françaises Azure disponibles pour Amélie
+  // CORRIGÉ : Voix Azure avec paramètres spécifiques
   const azureVoices = [
-    { name: 'fr-FR-DeniseNeural', label: 'Denise - Professionnelle' },
-    { name: 'fr-FR-EloiseNeural', label: 'Eloise - Dynamique' },
-    { name: 'fr-FR-JacquelineNeural', label: 'Jacqueline - Apaisante' },
-    { name: 'fr-CA-SylvieNeural', label: 'Sylvie - Québécoise' }
+    { 
+      name: 'fr-FR-DeniseNeural', 
+      label: 'Denise - Professionnelle',
+      rate: '0.85',
+      pitch: '-5%',
+      style: 'professional'
+    },
+    { 
+      name: 'fr-FR-EloiseNeural', 
+      label: 'Eloise - Dynamique',
+      rate: '1.0',
+      pitch: '+10%',
+      style: 'cheerful'
+    },
+    { 
+      name: 'fr-FR-JacquelineNeural', 
+      label: 'Jacqueline - Apaisante',
+      rate: '0.8',
+      pitch: '-10%',
+      style: 'calm'
+    },
+    { 
+      name: 'fr-CA-SylvieNeural', 
+      label: 'Sylvie - Québécoise',
+      rate: '0.9',
+      pitch: '0%',
+      style: 'friendly'
+    }
   ];
 
   const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
@@ -124,7 +148,7 @@ const App = () => {
     if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION) {
       try {
         const success = await speakWithAzure(text);
-        if (success) return; // Succès Azure, on s'arrête là
+        if (success) return; // Succès Azure, on s'arrête là 
       } catch (error) {
         console.warn('Azure Speech échec, fallback vers synthèse native:', error);
       }
@@ -134,9 +158,9 @@ const App = () => {
     speakWithNativeSynthesis(text);
   };
 
-  // NOUVELLE FONCTION : Synthèse avec Azure Speech Services
+  // CORRIGÉ : Fonction Azure avec utilisation correcte d'azureVoice et paramètres différenciés
   const speakWithAzure = async (text) => {
-    console.log('Tentative synthèse Azure Speech...');
+    console.log('Tentative synthèse Azure Speech avec voix:', azureVoice);
     
     try {
       // Pour les tests silencieux de pré-initialisation
@@ -146,13 +170,18 @@ const App = () => {
         setIsSpeaking(true);
       }
       
-      // Configuration de la requête Azure avec voix française premium
+      // CORRIGÉ : Récupération des paramètres spécifiques à la voix sélectionnée
+      const selectedVoiceConfig = azureVoices.find(v => v.name === azureVoice) || azureVoices[0];
+      
+      // CORRIGÉ : Configuration SSML avec paramètres différenciés par voix
       const ssml = `
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="fr-FR">
-          <voice name="fr-FR-DeniseNeural">
-            <prosody rate="0.9" pitch="0%">
-              ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-            </prosody>
+          <voice name="${azureVoice}">
+            <mstts:express-as style="${selectedVoiceConfig.style}" xmlns:mstts="https://www.w3.org/2001/mstts">
+              <prosody rate="${selectedVoiceConfig.rate}" pitch="${selectedVoiceConfig.pitch}">
+                ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+              </prosody>
+            </mstts:express-as>
           </voice>
         </speak>
       `;
@@ -162,7 +191,7 @@ const App = () => {
         headers: {
           'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
           'Content-Type': 'application/ssml+xml',
-          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3'
+          'X-Microsoft-OutputFormat': 'audio-24khz-96kbitrate-mono-mp3' // CORRIGÉ : Qualité audio améliorée
         },
         body: ssml
       });
@@ -185,7 +214,7 @@ const App = () => {
       
       // Gestion des événements audio pour la lecture normale
       audio.onplay = () => {
-        console.log('Azure Speech: lecture démarrée');
+        console.log(`Azure Speech: lecture démarrée avec ${azureVoice}`);
         setIsSpeaking(true);
       };
       
@@ -204,7 +233,7 @@ const App = () => {
       
       // Démarrer la lecture
       await audio.play();
-      console.log('Azure Speech: succès');
+      console.log(`Azure Speech: succès avec ${selectedVoiceConfig.label}`);
       return true;
       
     } catch (error) {
@@ -264,14 +293,15 @@ const App = () => {
     }
   };
 
-  // MISE À JOUR : Test de la voix avec Azure ou native
+  // CORRIGÉ : Test de la voix avec phrase plus longue pour mieux percevoir les différences
   const testSelectedVoice = () => {
     initializeAudioContext();
     const currentVoiceName = azureVoices.find(v => v.name === azureVoice)?.label || 'Azure';
-    speakText(`Bonjour, je suis Amélie avec la voix ${currentVoiceName}. Je suis votre assistante PPC personnalisée.`);
+    const testPhrase = `Bonjour, je suis Amélie avec la voix ${currentVoiceName}. Je suis votre assistante PPC personnalisée, spécialisée dans le traitement par pression positive continue pour l'apnée du sommeil. Comment puis-je vous aider aujourd'hui ?`;
+    speakText(testPhrase);
   };
 
-  // MISE À JOUR : Fonction d'arrêt pour gérer les deux types de synthèse
+  // FONCTION D'ARRÊT : Gère les deux types de synthèse
   const stopAllSpeech = () => {
     // Arrêter synthèse native
     speechSynthesis.cancel();
@@ -287,7 +317,7 @@ const App = () => {
     console.log('Toute synthèse vocale interrompue');
   };
 
-  // MISE À JOUR : Indicateur de statut vocal amélioré avec voix sélectionnée
+  // CORRIGÉ : Indicateur de statut vocal amélioré avec voix sélectionnée
   const getVoiceStatusInfo = () => {
     if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION) {
       const selectedAzureVoice = azureVoices.find(v => v.name === azureVoice);
@@ -321,7 +351,7 @@ const App = () => {
     }
   };
 
-  // NOUVEAU : Pré-initialisation d'Azure Speech pour iOS
+  // Pré-initialisation d'Azure Speech pour iOS
   const initializeAzureSpeech = async () => {
     if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION && isIOS) {
       try {
@@ -340,7 +370,7 @@ const App = () => {
       speechSynthesis.onvoiceschanged = initVoices;
     }
     
-    // NOUVEAU : Initialiser Azure dès le chargement sur iOS
+    // Initialiser Azure dès le chargement sur iOS
     if (isIOS) {
       setTimeout(() => initializeAzureSpeech(), 1000);
     }
@@ -567,7 +597,7 @@ const App = () => {
       setConversationHistory([assistantMessage]);
       
       if (speechEnabled) {
-        // CORRECTION iOS : Délai plus long pour assurer qu'Azure soit prêt
+        // Délai plus long pour assurer qu'Azure soit prêt
         setTimeout(() => speakText(welcomeMessage), 2000);
       }
     }, 500);
@@ -581,7 +611,7 @@ const App = () => {
     setResponse('');
     setTranscript('');
     setIsProcessing(false);
-    setIsSpeaking(false); // NOUVEAU: Reset état synthèse
+    setIsSpeaking(false);
     clearTimeout(silenceTimerRef.current);
     
     if (recognitionRef.current) {
@@ -637,7 +667,7 @@ const App = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* Indicateur de statut avec animation améliorée */}
+            {/* Indicateur de statut */}
             <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm transition-all duration-500 ${
               connectionStatus === 'connected' 
                 ? 'bg-green-500/20 text-green-400' 
@@ -649,7 +679,7 @@ const App = () => {
               <span>{connectionStatus === 'connected' ? 'OK' : 'Erreur'}</span>
             </div>
             
-            {/* Bouton synthèse vocale avec état visuel */}
+            {/* Bouton synthèse vocale */}
             <button
               onClick={() => setSpeechEnabled(!speechEnabled)}
               className={`p-4 rounded-full transition-all duration-300 button-hover-animation ${
@@ -672,7 +702,7 @@ const App = () => {
               </svg>
             </button>
 
-            {/* NOUVEAU: Sélecteur de voix Azure pour Amélie */}
+            {/* CORRIGÉ : Sélecteur de voix Azure */}
             {AZURE_SPEECH_KEY && AZURE_SPEECH_REGION && (
               <select
                 value={azureVoice}
@@ -694,7 +724,7 @@ const App = () => {
               </select>
             )}
 
-            {/* BOUTON TEST AMÉLIE RESTAURÉ */}
+            {/* Bouton test voix */}
             <button
               onClick={testSelectedVoice}
               className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs button-hover-animation"
@@ -734,7 +764,7 @@ const App = () => {
         {!conversationActive ? (
           <div className="text-center py-12 fade-in">
             <div className="mb-12">
-              {/* Logo principal avec animations améliorées */}
+              {/* Logo principal */}
               <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center relative main-logo">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="text-white">
                   <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/>
@@ -780,7 +810,7 @@ const App = () => {
               </button>
             </div>
 
-            {/* MODE D'EMPLOI avec animations d'entrée */}
+            {/* Mode d'emploi */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
               <div className="bg-white/5 backdrop-blur rounded-xl p-6 card-hover slide-up delay-600">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-blue-400 mx-auto mb-2">
@@ -804,7 +834,7 @@ const App = () => {
             </div>
           </div>
         ) : (
-          // Interface de conversation avec animations
+          // Interface de conversation
           <div className="py-6">
             <div className="bg-white/5 backdrop-blur rounded-2xl p-6 mb-6 min-h-[400px] max-h-[500px] overflow-y-auto conversation-container">
               {conversationHistory.length === 0 ? (
@@ -835,7 +865,7 @@ const App = () => {
               )}
             </div>
 
-            {/* Zone de transcription avec animation */}
+            {/* Zone de transcription */}
             {transcript && (
               <div className="bg-blue-500/20 backdrop-blur rounded-xl p-4 mb-4 border border-blue-400/30 listening-animation">
                 <p className="text-blue-400 text-sm font-medium mb-2">Je vous écoute...</p>
@@ -845,7 +875,7 @@ const App = () => {
 
             <div className="text-center">
               {isProcessing ? (
-                // Animation de traitement optimisée
+                // Animation de traitement
                 <div className="py-6">
                   <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center processing-animation">
                     <div className="flex space-x-1">
@@ -858,7 +888,7 @@ const App = () => {
                 </div>
               ) : (
                 <div className="py-4">
-                  {/* Bouton microphone principal avec animations contextuelles */}
+                  {/* Bouton microphone principal */}
                   <button
                     onClick={toggleListening}
                     disabled={!OPENAI_API_KEY}
@@ -878,7 +908,7 @@ const App = () => {
                     </svg>
                   </button>
                   
-                  {/* Indicateur visuel d'état avec animations */}
+                  {/* Indicateur visuel d'état */}
                   <div className="mt-4">
                     <p className={`text-lg font-medium transition-all duration-500 ${
                       !OPENAI_API_KEY 
@@ -915,7 +945,7 @@ const App = () => {
                 </div>
               )}
               
-              {/* BOUTONS AVEC ANIMATIONS AMÉLIORÉES */}
+              {/* Boutons de contrôle */}
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
@@ -964,7 +994,7 @@ const App = () => {
           </div>
         )}
 
-        {/* FOOTER avec animation */}
+        {/* Footer */}
         <div className="text-center text-blue-200 text-sm py-6 mt-8 border-t border-white/10 bg-white/5 backdrop-blur rounded-t-xl footer-fade">
           <p className="mb-3 text-base font-medium">PPCare Voice - Version finale optimisée Amélie</p>
           <div className="space-y-2">
