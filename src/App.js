@@ -1,4 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+<button
+              onClick={testSelectedVoice}
+              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                border: '1px solid #fbbf24'
+              }}
+            >
+              Test Amélie
+            </button>import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 const App = () => {
@@ -725,6 +734,17 @@ const App = () => {
                   }}
                 >
                   Arrêter l'écoute
+                </button>
+                
+                <button
+                  onClick={testSelectedVoice}
+                  className="px-6 py-3 rounded-full text-white transition-colors"
+                  style={{
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    border: '1px solid #fbbf24'
+                  }}
+                >
+                  Test Amélie
                 </button>
                 
                 <button
