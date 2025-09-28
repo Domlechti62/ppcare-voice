@@ -1,13 +1,4 @@
-<button
-              onClick={testSelectedVoice}
-              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
-              style={{
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                border: '1px solid #fbbf24'
-              }}
-            >
-              Test Amélie
-            </button>import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 const App = () => {
@@ -154,7 +145,7 @@ const App = () => {
     }
   };
 
-  // Test de la voix sélectionnée
+  // Test de la voix sélectionnée - FONCTION RESTAURÉE
   const testSelectedVoice = () => {
     initializeAudioContext();
     speakText("Bonjour, je suis Amélie, votre assistante PPC avec une voix française de qualité optimale.");
@@ -415,19 +406,6 @@ const App = () => {
     }, 500);
   };
 
-  const handleQuickAction = async (question) => {
-    initializeAudioContext();
-    
-    if (!conversationActive) {
-      await startConversation();
-      setTimeout(() => {
-        handleSpeechSubmit(question);
-      }, 1500);
-    } else {
-      await handleSpeechSubmit(question);
-    }
-  };
-
   const returnToHome = () => {
     setIsListening(false);
     isListeningRef.current = false;
@@ -456,29 +434,6 @@ const App = () => {
       minute: '2-digit' 
     });
   };
-
-  const quickActions = [
-    { 
-      text: "Problème masque", 
-      color: "bg-gradient-special-red",
-      question: "J'ai des problèmes de fuite avec mon masque PPC"
-    },
-    { 
-      text: "Machine bruyante", 
-      color: "bg-gradient-special-orange",
-      question: "Ma machine PPC fait du bruit anormal"
-    },
-    { 
-      text: "Entretien & nettoyage", 
-      color: "bg-gradient-special-blue",
-      question: "Comment bien nettoyer ma machine PPC ?"
-    },
-    { 
-      text: "Confort sommeil", 
-      color: "bg-gradient-special-purple",
-      question: "Comment améliorer mon confort avec la PPC ?"
-    },
-  ];
 
   return (
     <div className="min-h-screen text-white">
@@ -547,7 +502,17 @@ const App = () => {
               </svg>
             </button>
 
-
+            {/* BOUTON TEST AMÉLIE RESTAURÉ */}
+            <button
+              onClick={testSelectedVoice}
+              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                border: '1px solid #fbbf24'
+              }}
+            >
+              Test Amélie
+            </button>
           </div>
         </div>
       </div>
@@ -615,6 +580,7 @@ const App = () => {
               </button>
             </div>
 
+            {/* MODE D'EMPLOI ET CADRE UNIVERSEL */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
               <div className="bg-white/5 backdrop-blur rounded-xl p-6">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-blue-400 mx-auto mb-2">
@@ -720,6 +686,7 @@ const App = () => {
                 </div>
               )}
               
+              {/* BOUTONS AVEC TEST AMÉLIE RESTAURÉ */}
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
@@ -770,15 +737,16 @@ const App = () => {
           </div>
         )}
 
-        <div className="text-center text-blue-200 text-xs py-4 border-t border-white/10">
-          <p className="mb-2">PPCare Voice - Version finale optimisée Amélie</p>
-          <div className="space-y-1">
-            <p>Développé par Dom Tech & Services</p>
-            <div className="flex justify-center space-x-4 text-blue-300">
-              <a href="mailto:contact@dom-tech-services.fr" className="hover:text-white transition-colors">
+        {/* FOOTER REMONTÉ ET PLUS VISIBLE */}
+        <div className="text-center text-blue-200 text-sm py-6 mt-8 border-t border-white/10 bg-white/5 backdrop-blur rounded-t-xl">
+          <p className="mb-3 text-base font-medium">PPCare Voice - Version finale optimisée Amélie</p>
+          <div className="space-y-2">
+            <p className="text-blue-300">Développé par Dom Tech & Services</p>
+            <div className="flex justify-center space-x-6 text-blue-300">
+              <a href="mailto:contact@dom-tech-services.fr" className="hover:text-white transition-colors underline">
                 contact@dom-tech-services.fr
               </a>
-              <a href="https://www.dom-tech-services.fr/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+              <a href="https://www.dom-tech-services.fr/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline">
                 www.dom-tech-services.fr
               </a>
             </div>
