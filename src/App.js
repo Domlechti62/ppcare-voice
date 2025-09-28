@@ -111,9 +111,10 @@ const App = () => {
     try {
       speechSynthesis.cancel();
       
+      // CORRECTION : Forcer l'initialisation si nécessaire
       if (isIOS && !audioInitialized) {
-        console.warn('Audio non initialisé sur iOS');
-        return;
+        console.log('Initialisation audio forcée avant synthèse');
+        initializeAudioContext();
       }
       
       const utterance = new SpeechSynthesisUtterance(text);
