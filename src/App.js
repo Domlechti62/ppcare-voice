@@ -21,6 +21,8 @@ const App = () => {
   const isListeningRef = useRef(false);
 
   const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+  const AZURE_SPEECH_KEY = process.env.REACT_APP_AZURE_SPEECH_KEY;
+  const AZURE_SPEECH_REGION = process.env.REACT_APP_AZURE_SPEECH_REGION;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isIPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -103,16 +105,101 @@ const App = () => {
     }
   };
 
-  // FONCTION OPTIMISÉE : Synthèse avec Amélie fr-CA + État de parole
-  const speakText = (text) => {
+  // FONCTION INTÉGRÉE : Synthèse avec Azure Speech ou fallback natif
+  const speakText = async (text) => {
     if (!speechEnabled) return;
     
-    console.log('Lecture avec voix optimisée:', selectedVoice?.name || 'par défaut');
+    console.log('Synthèse vocale demandée pour:', text.substring(0, 50) + '...');
+    
+    // Essayer Azure Speech en priorité si configuré
+    if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION) {
+      try {
+        const success = await speakWithAzure(text);
+        if (success) return; // Succès Azure, on s'arrête là
+      } catch (error) {
+        console.warn('Azure Speech échec, fallback vers synthèse native:', error);
+      }
+    }
+    
+    // Fallback vers synthèse native
+    speakWithNativeSynthesis(text);
+  };
+
+  // NOUVELLE FONCTION : Synthèse avec Azure Speech Services
+  const speakWithAzure = async (text) => {
+    console.log('Tentative synthèse Azure Speech...');
+    
+    try {
+      setIsSpeaking(true);
+      
+      // Configuration de la requête Azure avec voix française premium
+      const ssml = `
+        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="fr-FR">
+          <voice name="fr-FR-DeniseNeural">
+            <prosody rate="0.9" pitch="0%">
+              ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+            </prosody>
+          </voice>
+        </speak>
+      `;
+      
+      const response = await fetch(`https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3'
+        },
+        body: ssml
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Azure Speech API error: ${response.status}`);
+      }
+      
+      // Conversion en audio et lecture
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      // Gestion des événements audio
+      audio.onplay = () => {
+        console.log('Azure Speech: lecture démarrée');
+        setIsSpeaking(true);
+      };
+      
+      audio.onended = () => {
+        console.log('Azure Speech: lecture terminée');
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl); // Nettoyage mémoire
+      };
+      
+      audio.onerror = () => {
+        console.error('Azure Speech: erreur de lecture audio');
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+        throw new Error('Erreur lecture audio Azure');
+      };
+      
+      // Démarrer la lecture
+      await audio.play();
+      console.log('Azure Speech: succès');
+      return true;
+      
+    } catch (error) {
+      console.error('Erreur Azure Speech:', error);
+      setIsSpeaking(false);
+      throw error;
+    }
+  };
+
+  // FONCTION EXISTANTE : Synthèse native (fallback)
+  const speakWithNativeSynthesis = (text) => {
+    console.log('Utilisation synthèse native du navigateur');
     
     try {
       speechSynthesis.cancel();
       
-      // CORRECTION : Forcer l'initialisation si nécessaire
       if (isIOS && !audioInitialized) {
         console.log('Initialisation audio forcée avant synthèse');
         initializeAudioContext();
@@ -120,7 +207,6 @@ const App = () => {
       
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Utiliser la voix sélectionnée (Amélie fr-CA prioritaire)
       if (selectedVoice) {
         utterance.voice = selectedVoice;
         utterance.lang = selectedVoice.lang;
@@ -130,31 +216,29 @@ const App = () => {
         console.log('Utilisation voix par défaut');
       }
       
-      // Configuration optimisée pour la qualité
       utterance.rate = 0.9;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      // NOUVEAU: Gestion des états de synthèse vocale
       utterance.onstart = () => {
-        console.log('Synthèse démarrée');
+        console.log('Synthèse native démarrée');
         setIsSpeaking(true);
       };
       
       utterance.onend = () => {
-        console.log('Synthèse terminée');
+        console.log('Synthèse native terminée');
         setIsSpeaking(false);
       };
       
       utterance.onerror = (e) => {
-        console.error('Erreur synthèse:', e.error);
+        console.error('Erreur synthèse native:', e.error);
         setIsSpeaking(false);
       };
       
       speechSynthesis.speak(utterance);
       
     } catch (error) {
-      console.error('Erreur synthèse vocale:', error);
+      console.error('Erreur synthèse vocale native:', error);
       setIsSpeaking(false);
     }
   };
