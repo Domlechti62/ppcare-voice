@@ -19,7 +19,7 @@ const App = () => {
   const silenceTimerRef = useRef(null);
   const isListeningRef = useRef(false);
 
-  const CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY;
+  const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isIPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -148,7 +148,7 @@ const App = () => {
   // Test de la voix sélectionnée - FONCTION RESTAURÉE
   const testSelectedVoice = () => {
     initializeAudioContext();
-    speakText("Bonjour, je suis Claude, votre assistant PPC avec une voix française optimisée.");
+    speakText("Bonjour, je suis Amélie, votre assistante PPC");
   };
 
   const initVoices = () => {
@@ -290,8 +290,8 @@ const App = () => {
   const handleSpeechSubmit = async (speechText) => {
     if (!speechText.trim()) return;
 
-    if (!CLAUDE_API_KEY) {
-      const errorMessage = "Clé API Claude manquante. Vérifiez la configuration des variables d'environnement.";
+    if (!OPENAI_API_KEY) {
+      const errorMessage = "Clé API OpenAI manquante. Vérifiez la configuration des variables d'environnement.";
       setResponse(errorMessage);
       const errorMsg = { 
         type: 'assistant', 
@@ -312,34 +312,36 @@ const App = () => {
     };
     setConversationHistory(prev => [...prev, userMessage]);
 
-    const systemPrompt = "Tu es PPCare, assistant vocal expert en traitement par PPC (Pression Positive Continue) pour l'apnée du sommeil. MISSION: Aider exclusivement avec les équipements de traitement par PPC : machines PPC, masques, accessoires et maintenance. TERMINOLOGIE OBLIGATOIRE: Utilise UNIQUEMENT 'PPC' ou 'Pression Positive Continue'. Dis 'machine PPC' ou 'appareil PPC'. Dis 'traitement par PPC'. INTERDICTION ABSOLUE d'utiliser le terme anglais 'CPAP'. SÉCURITÉ: JAMAIS de diagnostic médical. Redirige vers un médecin pour toute question médicale. STYLE: Réponses courtes (<200 mots), langage simple, naturel et rassurant. Ton français professionnel et bienveillant.";
-
     try {
-      const apiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': CLAUDE_API_KEY,
-          'anthropic-version': '2023-06-01'
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
         },
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-20241022",
-          max_tokens: 300,
+          model: "gpt-3.5-turbo",
           messages: [
             {
-              role: "user",
-              content: `${systemPrompt}\n\nUtilisateur: ${speechText}`
+              role: "system", 
+              content: "Tu es PPCare, assistant vocal expert en traitement par PPC (Pression Positive Continue) pour l'apnée du sommeil. MISSION: Aider exclusivement avec les équipements de traitement par PPC : machines PPC, masques, accessoires et maintenance. TERMINOLOGIE OBLIGATOIRE: Utilise UNIQUEMENT 'PPC' ou 'Pression Positive Continue'. Dis 'machine PPC' ou 'appareil PPC'. Dis 'traitement par PPC'. INTERDICTION ABSOLUE d'utiliser le terme anglais 'CPAP'. SÉCURITÉ: JAMAIS de diagnostic médical. Redirige vers un médecin pour toute question médicale. STYLE: Réponses courtes (<200 mots), langage simple, naturel et rassurant. Ton français professionnel et bienveillant."
+            },
+            {
+              role: "user", 
+              content: speechText
             }
-          ]
+          ],
+          max_tokens: 300,
+          temperature: 0.7
         })
       });
 
       if (!apiResponse.ok) {
-        throw new Error(`Erreur Claude: ${apiResponse.status}`);
+        throw new Error(`Erreur OpenAI: ${apiResponse.status}`);
       }
 
       const data = await apiResponse.json();
-      const aiResponse = data.content[0].text.trim();
+      const aiResponse = data.choices[0].message.content.trim();
       
       const assistantMessage = { 
         type: 'assistant', 
@@ -360,7 +362,7 @@ const App = () => {
       
       let errorMessage = "Désolé, je n'ai pas pu traiter votre demande. ";
       if (error.message.includes('401')) {
-        errorMessage += "Vérifiez votre clé API Claude.";
+        errorMessage += "Vérifiez votre clé API OpenAI.";
       } else if (error.message.includes('Failed to fetch')) {
         errorMessage += "Vérifiez votre connexion internet.";
       } else {
@@ -388,7 +390,7 @@ const App = () => {
     setConversationActive(true);
     setConversationHistory([]);
     
-    const welcomeMessage = "Bonjour ! Je suis Claude, votre assistant PPC personnel. Comment puis-je vous aider aujourd'hui ?";
+    const welcomeMessage = "Bonjour ! Je suis votre assistant PPC personnel. Comment puis-je vous aider aujourd'hui ?";
     
     setTimeout(() => {
       const assistantMessage = {
@@ -500,7 +502,7 @@ const App = () => {
               </svg>
             </button>
 
-            {/* BOUTON TEST VOIX RESTAURÉ */}
+            {/* BOUTON TEST AMÉLIE RESTAURÉ */}
             <button
               onClick={testSelectedVoice}
               className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
@@ -509,7 +511,7 @@ const App = () => {
                 border: '1px solid #fbbf24'
               }}
             >
-              Test Voix
+              Test Amélie
             </button>
           </div>
         </div>
@@ -518,21 +520,21 @@ const App = () => {
       <div className="max-w-4xl mx-auto px-6">
         {/* Configuration */}
         <div className={`border rounded-xl p-4 mb-6 ${
-          CLAUDE_API_KEY 
+          OPENAI_API_KEY 
             ? 'bg-green-900/20 border-green-500/30' 
             : 'bg-red-900/20 border-red-500/30'
         }`}>
           <h3 className={`font-semibold mb-2 ${
-            CLAUDE_API_KEY ? 'text-green-400' : 'text-red-400'
+            OPENAI_API_KEY ? 'text-green-400' : 'text-red-400'
           }`}>
-            {CLAUDE_API_KEY ? '✅ PPCare Voice - Version Claude Optimisée' : '❌ Configuration requise'}
+            {OPENAI_API_KEY ? '✅ PPCare Voice - Version Optimisée' : '❌ Configuration requise'}
           </h3>
           <p className={`text-sm ${
-            CLAUDE_API_KEY ? 'text-green-200' : 'text-red-200'
+            OPENAI_API_KEY ? 'text-green-200' : 'text-red-200'
           }`}>
-            {CLAUDE_API_KEY 
-              ? `Voix optimisée: ${selectedVoice?.name || 'Chargement...'} • Audio: ${audioInitialized ? 'Activé' : 'Cliquez pour activer'} • Plateforme: ${isIOS ? (isIPad ? 'iPad Safari' : 'iPhone Safari') : 'Desktop'} • IA: Claude`
-              : 'Configurez la variable d\'environnement REACT_APP_CLAUDE_API_KEY dans Vercel.'
+            {OPENAI_API_KEY 
+              ? `Voix optimisée: ${selectedVoice?.name || 'Chargement...'} • Audio: ${audioInitialized ? 'Activé' : 'Cliquez pour activer'} • Plateforme: ${isIOS ? (isIPad ? 'iPad Safari' : 'iPhone Safari') : 'Desktop'}`
+              : 'Configurez la variable d\'environnement REACT_APP_OPENAI_API_KEY dans Vercel.'
             }
           </p>
         </div>
@@ -552,20 +554,20 @@ const App = () => {
               
               <h2 className="text-4xl font-bold mb-4">PPCare Voice</h2>
               <p className="text-xl text-blue-200 mb-8 max-w-2xl mx-auto leading-relaxed">
-                Assistant vocal PPC powered by Claude avec voix française optimisée pour {isIOS ? 'iOS' : 'tous les appareils'}.
+                Assistant vocal PPC avec voix Amélie optimisée pour {isIOS ? 'iOS' : 'tous les appareils'}.
               </p>
               
               <button
                 onClick={startConversation}
-                disabled={!CLAUDE_API_KEY}
+                disabled={!OPENAI_API_KEY}
                 className={`px-8 py-4 rounded-full text-xl font-medium transition-all transform shadow-lg ${
-                  CLAUDE_API_KEY
+                  OPENAI_API_KEY
                     ? 'hover:scale-105 bg-gradient-from-green-500 to-green-600 border-green-400' 
                     : 'opacity-50 cursor-not-allowed bg-gray-500'
                 }`}
                 style={{
-                  background: CLAUDE_API_KEY ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
-                  border: CLAUDE_API_KEY ? '2px solid #34d399' : undefined
+                  background: OPENAI_API_KEY ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
+                  border: OPENAI_API_KEY ? '2px solid #34d399' : undefined
                 }}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="inline mr-3">
@@ -574,7 +576,7 @@ const App = () => {
                   <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
                   <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                {CLAUDE_API_KEY ? 'Commencer avec Claude' : 'Configuration requise'}
+                {OPENAI_API_KEY ? 'Commencer avec Amélie' : 'Configuration requise'}
               </button>
             </div>
 
@@ -588,7 +590,7 @@ const App = () => {
                 <div className="text-left text-blue-200 text-sm space-y-2">
                   <p>• Cliquez pour démarrer une conversation</p>
                   <p>• Posez vos questions (masques, machines PPC, difficultés d'utilisation ou d'adaptation...)</p>
-                  <p>• Claude vous répond avec expertise</p>
+                  <p>• Amélie vous répond</p>
                   <p>• Utilisez "Arrêter l'écoute" pour interrompre l'audio</p>
                 </div>
               </div>
@@ -648,15 +650,15 @@ const App = () => {
                       <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
-                  <p className="text-blue-200">Claude réfléchit...</p>
+                  <p className="text-blue-200">Amélie réfléchit...</p>
                 </div>
               ) : (
                 <div className="py-4">
                   <button
                     onClick={toggleListening}
-                    disabled={!CLAUDE_API_KEY}
+                    disabled={!OPENAI_API_KEY}
                     className={`w-24 h-24 rounded-full transition-all transform shadow-2xl ${
-                      !CLAUDE_API_KEY 
+                      !OPENAI_API_KEY 
                         ? 'bg-gray-500 opacity-50 cursor-not-allowed'
                         : isListening 
                           ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-110' 
@@ -673,18 +675,18 @@ const App = () => {
                   
                   <div className="mt-4">
                     <p className="text-lg text-blue-200 font-medium">
-                      {!CLAUDE_API_KEY 
+                      {!OPENAI_API_KEY 
                         ? 'Configuration requise'
                         : isListening 
-                          ? 'Claude vous écoute...' 
-                          : 'Cliquez pour parler à Claude'
+                          ? 'Amélie vous écoute...' 
+                          : 'Cliquez pour parler à Amélie'
                       }
                     </p>
                   </div>
                 </div>
               )}
               
-              {/* BOUTONS AVEC TEST VOIX RESTAURÉ */}
+              {/* BOUTONS AVEC TEST AMÉLIE RESTAURÉ */}
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
@@ -709,7 +711,7 @@ const App = () => {
                     border: '1px solid #fbbf24'
                   }}
                 >
-                  Test Voix
+                  Test Amélie
                 </button>
                 
                 <button
@@ -737,7 +739,7 @@ const App = () => {
 
         {/* FOOTER REMONTÉ ET PLUS VISIBLE */}
         <div className="text-center text-blue-200 text-sm py-6 mt-8 border-t border-white/10 bg-white/5 backdrop-blur rounded-t-xl">
-          <p className="mb-3 text-base font-medium">PPCare Voice - Version Claude optimisée</p>
+          <p className="mb-3 text-base font-medium">PPCare Voice - Version finale optimisée Amélie</p>
           <div className="space-y-2">
             <p className="text-blue-300">Développé par Dom Tech & Services</p>
             <div className="flex justify-center space-x-6 text-blue-300">
@@ -756,3 +758,4 @@ const App = () => {
 };
 
 export default App;
+
