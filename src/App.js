@@ -580,12 +580,19 @@ const App = () => {
                 disabled={!OPENAI_API_KEY}
                 className={`px-8 py-4 rounded-full text-xl font-medium transition-all transform shadow-lg main-button slide-up delay-400 ${
                   OPENAI_API_KEY
-                    ? 'hover:scale-105 bg-gradient-from-green-500 to-green-600 border-green-400 button-ready' 
-                    : 'opacity-50 cursor-not-allowed bg-gray-500'
+                    ? 'hover:scale-105 button-ready' 
+                    : 'opacity-50 cursor-not-allowed'
                 }`}
                 style={{
-                  background: OPENAI_API_KEY ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
-                  border: OPENAI_API_KEY ? '2px solid #34d399' : undefined
+                  background: OPENAI_API_KEY ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#6b7280',
+                  border: OPENAI_API_KEY ? '2px solid #34d399' : '2px solid #9ca3af',
+                  color: 'white',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '60px',
+                  zIndex: 10,
+                  position: 'relative'
                 }}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="inline mr-3">
