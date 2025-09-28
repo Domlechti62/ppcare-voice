@@ -12,6 +12,7 @@ const App = () => {
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [showAbout, setShowAbout] = useState(false);
   const [voiceInfo, setVoiceInfo] = useState('Chargement...');
+  const [audioInitialized, setAudioInitialized] = useState(false);
   
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
@@ -20,70 +21,111 @@ const App = () => {
   // Récupération sécurisée de la clé API
   const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
-  // Détection iOS simplifiée
+  // Détection iOS
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isIPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  // FONCTION SIMPLIFIÉE : Synthèse vocale avec fallback
+  // FONCTION CRITIQUE : Initialisation audio iOS
+  const initializeAudioContext = () => {
+    if (isIOS && !audioInitialized) {
+      // Forcer l'initialisation avec un son silencieux
+      const utterance = new SpeechSynthesisUtterance('');
+      utterance.volume = 0;
+      speechSynthesis.speak(utterance);
+      
+      setAudioInitialized(true);
+      console.log('Audio iOS initialisé');
+    }
+  };
+
+  // FONCTION CORRIGÉE : Synthèse vocale iOS
   const speakText = (text) => {
     if (!speechEnabled) return;
+    
+    console.log('Tentative de lecture:', text.substring(0, 50) + '...');
     
     try {
       // Arrêter toute synthèse en cours
       speechSynthesis.cancel();
       
+      // Sur iOS, s'assurer que l'audio est initialisé
+      if (isIOS && !audioInitialized) {
+        console.warn('Audio non initialisé sur iOS');
+        return;
+      }
+      
       // Créer l'utterance
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Configuration simple et fiable
+      // Configuration optimisée
       utterance.lang = 'fr-FR';
       utterance.rate = 0.9;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      // Essayer de trouver une voix française, sinon utiliser la défaut
+      // Essayer de trouver une voix française
       const voices = speechSynthesis.getVoices();
+      console.log('Voix disponibles:', voices.length);
+      
       const frenchVoice = voices.find(voice => 
         voice.lang.includes('fr') || 
         voice.name.toLowerCase().includes('french') ||
         voice.name.toLowerCase().includes('amélie') ||
-        voice.name.toLowerCase().includes('thomas')
+        voice.name.toLowerCase().includes('thomas') ||
+        voice.name.toLowerCase().includes('audrey')
       );
       
       if (frenchVoice) {
         utterance.voice = frenchVoice;
-        console.log('Voix utilisée:', frenchVoice.name);
+        console.log('Voix française sélectionnée:', frenchVoice.name);
       } else {
-        console.log('Utilisation voix par défaut');
+        console.log('Aucune voix française trouvée, utilisation voix par défaut');
       }
       
-      // Événements
-      utterance.onstart = () => console.log('Synthèse démarrée');
-      utterance.onend = () => console.log('Synthèse terminée');
-      utterance.onerror = (e) => console.warn('Erreur synthèse:', e.error);
+      // Événements de débogage
+      utterance.onstart = () => {
+        console.log('✅ Synthèse démarrée');
+      };
       
-      // Lancement avec délai pour iOS
-      setTimeout(() => {
-        speechSynthesis.speak(utterance);
-      }, isIOS ? 200 : 0);
+      utterance.onend = () => {
+        console.log('✅ Synthèse terminée');
+      };
+      
+      utterance.onerror = (event) => {
+        console.error('❌ Erreur synthèse:', event.error);
+      };
+      
+      // CORRECTION IMPORTANTE : Lancement immédiat sans délai
+      console.log('Lancement de la synthèse...');
+      speechSynthesis.speak(utterance);
       
     } catch (error) {
       console.error('Erreur synthèse vocale:', error);
     }
   };
 
-  // FONCTION SIMPLIFIÉE : Initialisation des voix
+  // Test de synthèse vocale
+  const testSpeech = () => {
+    console.log('=== TEST SYNTHÈSE VOCALE ===');
+    initializeAudioContext();
+    speakText('Test de la synthèse vocale française');
+  };
+
+  // Initialisation des voix
   const initVoices = () => {
     const voices = speechSynthesis.getVoices();
+    console.log('Voix chargées:', voices.length);
+    
     if (voices.length > 0) {
       const frenchVoices = voices.filter(v => v.lang.includes('fr'));
+      console.log('Voix françaises:', frenchVoices.map(v => v.name));
+      
       const voiceNames = frenchVoices.map(v => v.name).join(', ') || 'Système par défaut';
       setVoiceInfo(frenchVoices.length > 0 ? `${frenchVoices.length} voix FR` : 'Voix système');
-      console.log('Voix françaises disponibles:', frenchVoices);
     }
   };
 
-  // Configuration de la reconnaissance vocale SIMPLIFIÉE
+  // Configuration de la reconnaissance vocale
   useEffect(() => {
     // Initialiser les voix
     initVoices();
@@ -91,13 +133,12 @@ const App = () => {
       speechSynthesis.onvoiceschanged = initVoices;
     }
     
-    // Configuration reconnaissance vocale BASIQUE
+    // Configuration reconnaissance vocale
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
       
-      // Configuration SIMPLE et STABLE
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'fr-FR';
@@ -117,7 +158,6 @@ const App = () => {
           clearTimeout(silenceTimerRef.current);
           
           if (isListeningRef.current && !isProcessing) {
-            // Délai simple : 2.5s pour tous les appareils
             silenceTimerRef.current = setTimeout(() => {
               if (isListeningRef.current && !isProcessing && finalTranscript.trim()) {
                 stopListening();
@@ -136,13 +176,8 @@ const App = () => {
         isListeningRef.current = false;
         setConnectionStatus('error');
         
-        // Messages d'erreur clairs
         if (event.error === 'not-allowed') {
           alert('Microphone bloqué. Autorisez l\'accès dans les réglages de votre navigateur.');
-        } else if (event.error === 'no-speech') {
-          console.log('Aucune parole détectée');
-        } else if (event.error === 'aborted') {
-          console.log('Reconnaissance interrompue');
         }
         
         setTimeout(() => setConnectionStatus('connected'), 3000);
@@ -157,9 +192,6 @@ const App = () => {
       recognitionRef.current.onstart = () => {
         console.log('Reconnaissance démarrée');
       };
-    } else {
-      console.warn('Reconnaissance vocale non supportée');
-      setConnectionStatus('error');
     }
   }, [isProcessing]);
 
@@ -171,21 +203,18 @@ const App = () => {
     }
   };
 
-  // FONCTION SIMPLIFIÉE : Démarrage écoute
   const startListening = async () => {
     if (!recognitionRef.current || isListening || isProcessing) return;
 
     try {
-      // Test permission microphone
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop()); // Fermer immédiatement
+      stream.getTracks().forEach(track => track.stop());
       
       setIsListening(true);
       isListeningRef.current = true;
       setTranscript('');
       setConnectionStatus('connected');
       
-      // Démarrer la reconnaissance
       recognitionRef.current.start();
       
     } catch (error) {
@@ -217,7 +246,6 @@ const App = () => {
   const handleSpeechSubmit = async (speechText) => {
     if (!speechText.trim()) return;
 
-    // Vérification de la clé API
     if (!OPENAI_API_KEY) {
       const errorMessage = "Clé API OpenAI manquante. Vérifiez la configuration des variables d'environnement.";
       setResponse(errorMessage);
@@ -284,9 +312,10 @@ const App = () => {
       setResponse(aiResponse);
       setConversationHistory(prev => [...prev, assistantMessage]);
 
-      // Synthèse vocale SIMPLE
+      // SYNTHÈSE VOCALE - Déclenchée immédiatement
       if (speechEnabled) {
-        setTimeout(() => speakText(aiResponse), 300);
+        console.log('Déclenchement synthèse vocale...');
+        speakText(aiResponse);
       }
 
     } catch (error) {
@@ -318,6 +347,9 @@ const App = () => {
   };
 
   const startConversation = () => {
+    // IMPORTANT : Initialiser l'audio au moment du clic utilisateur
+    initializeAudioContext();
+    
     setConversationActive(true);
     setConversationHistory([]);
     
@@ -331,7 +363,7 @@ const App = () => {
       };
       setConversationHistory([assistantMessage]);
       
-      // Lire le message de bienvenue
+      // Lire le message de bienvenue (audio initialisé)
       if (speechEnabled) {
         setTimeout(() => speakText(welcomeMessage), 1000);
       }
@@ -339,6 +371,9 @@ const App = () => {
   };
 
   const handleQuickAction = async (question) => {
+    // IMPORTANT : Initialiser l'audio au moment du clic utilisateur
+    initializeAudioContext();
+    
     if (!conversationActive) {
       await startConversation();
       setTimeout(() => {
@@ -370,7 +405,6 @@ const App = () => {
       }
     }
     
-    // Arrêter la synthèse vocale
     speechSynthesis.cancel();
   };
 
@@ -432,7 +466,7 @@ const App = () => {
             <div>
               <h1 className="text-2xl font-bold">PPCare Voice</h1>
               <p className="text-green-400 text-xs">
-                {isIOS ? (isIPad ? 'iPad' : 'iPhone') : 'PC'} • {voiceInfo}
+                {isIOS ? (isIPad ? 'iPad' : 'iPhone') : 'PC'} • {voiceInfo} • {audioInitialized ? 'Audio OK' : 'Audio non initialisé'}
               </p>
             </div>
           </div>
@@ -470,6 +504,18 @@ const App = () => {
                 )}
               </svg>
             </button>
+
+            {/* BOUTON DE TEST AUDIO */}
+            <button
+              onClick={testSpeech}
+              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                border: '1px solid #fbbf24'
+              }}
+            >
+              Test Audio
+            </button>
           </div>
         </div>
       </div>
@@ -490,7 +536,7 @@ const App = () => {
             OPENAI_API_KEY ? 'text-green-200' : 'text-red-200'
           }`}>
             {OPENAI_API_KEY 
-              ? `API configurée • Plateforme: ${isIOS ? (isIPad ? 'iPad Safari' : 'iPhone Safari') : 'Desktop'}`
+              ? `API configurée • ${isIOS ? (isIPad ? 'iPad Safari' : 'iPhone Safari') : 'Desktop'} • Audio: ${audioInitialized ? 'Initialisé' : 'Cliquez pour activer'}`
               : 'Configurez la variable d\'environnement REACT_APP_OPENAI_API_KEY dans Vercel.'
             }
           </p>
@@ -511,7 +557,7 @@ const App = () => {
               
               <h2 className="text-4xl font-bold mb-4">PPCare Voice</h2>
               <p className="text-xl text-blue-200 mb-8 max-w-2xl mx-auto leading-relaxed">
-                Assistant vocal PPC corrigé pour {isIOS ? (isIPad ? 'iPad' : 'iPhone') : 'tous les appareils'}.
+                Assistant vocal PPC avec correction audio iOS. {isIOS ? 'Cliquez sur les boutons pour activer l\'audio.' : ''}
               </p>
               
               <button
@@ -560,28 +606,27 @@ const App = () => {
                   <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="2"/>
                   <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                <p className="text-xl font-bold text-white">Version corrigée</p>
-                <p className="text-blue-200 text-sm">Fonctionnel iOS</p>
-              </div>
-              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-green-400 mx-auto mb-2">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M17 13v6l-5 2-5-2v-6" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-                <p className="text-xl font-bold text-white">Synthèse simplifiée</p>
-                <p className="text-blue-200 text-sm">Voix française</p>
+                <p className="text-xl font-bold text-white">iPad fix</p>
+                <p className="text-blue-200 text-sm">Reconnaissance OK</p>
               </div>
               <div className="bg-white/5 backdrop-blur rounded-xl p-6">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-yellow-400 mx-auto mb-2">
                   <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/>
                 </svg>
-                <p className="text-xl font-bold text-white">Reconnaissance stable</p>
-                <p className="text-blue-200 text-sm">iPad compatible</p>
+                <p className="text-xl font-bold text-white">Audio iOS</p>
+                <p className="text-blue-200 text-sm">Correction appliquée</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-green-400 mx-auto mb-2">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                <p className="text-xl font-bold text-white">Test disponible</p>
+                <p className="text-blue-200 text-sm">Bouton "Test Audio"</p>
               </div>
             </div>
           </div>
         ) : (
-          // Interface de conversation
+          // Interface de conversation (identique au code précédent)
           <div className="py-6">
             <div className="bg-white/5 backdrop-blur rounded-2xl p-6 mb-6 min-h-[400px] max-h-[500px] overflow-y-auto">
               {conversationHistory.length === 0 ? (
@@ -660,13 +705,13 @@ const App = () => {
                       }
                     </p>
                     <p className="text-sm text-yellow-400 mt-2">
-                      Version corrigée • Délai: 2.5s
+                      Audio iOS: {audioInitialized ? 'Activé' : 'Cliquez pour activer'}
                     </p>
                   </div>
                 </div>
               )}
               
-              <div className="flex justify-center mt-4">
+              <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
                     if (isListening) stopListening();
@@ -679,7 +724,18 @@ const App = () => {
                     border: '1px solid #34d399'
                   }}
                 >
-                  {isListening ? 'Arrêter l\'écoute' : 'Effacer & Arrêter audio'}
+                  {isListening ? 'Arrêter' : 'Effacer'}
+                </button>
+                
+                <button
+                  onClick={testSpeech}
+                  className="px-6 py-3 rounded-full text-white transition-colors"
+                  style={{
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    border: '1px solid #fbbf24'
+                  }}
+                >
+                  Test Audio
                 </button>
               </div>
             </div>
@@ -687,7 +743,7 @@ const App = () => {
         )}
 
         <div className="text-center text-blue-200 text-xs py-4 border-t border-white/10">
-          <p>PPCare Voice - Version corrigée iOS • Synthèse simplifiée • Reconnaissance stable</p>
+          <p>PPCare Voice - Version avec correction audio iOS • Console ouverte pour debug</p>
           <p>Développé par Dom Tech & Services</p>
         </div>
       </div>
