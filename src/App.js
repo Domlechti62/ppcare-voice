@@ -743,7 +743,9 @@ const App = () => {
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
-                    if (isListening) stopListening();
+                    if (isListening) {
+                      stopListening();
+                    }
                     setTranscript('');
                     speechSynthesis.cancel();
                   }}
@@ -753,7 +755,26 @@ const App = () => {
                     border: '1px solid #34d399'
                   }}
                 >
-                  {isListening ? 'Arrêter' : 'Effacer'}
+                  {isListening ? 'Arrêter l\'écoute' : 'Effacer'}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    // Effacer toute la conversation et revenir à l'accueil
+                    speechSynthesis.cancel();
+                    setConversationHistory([]);
+                    setResponse('');
+                    setTranscript('');
+                    if (isListening) stopListening();
+                    setConversationActive(false);
+                  }}
+                  className="px-6 py-3 rounded-full text-white transition-colors"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    border: '1px solid #f87171'
+                  }}
+                >
+                  Tout effacer
                 </button>
                 
                 <button
