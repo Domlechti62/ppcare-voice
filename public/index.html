@@ -3,49 +3,295 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/logo_domtech.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#1e293b" />
-    <meta name="description" content="PPCare Voice - Assistant vocal PPC par Dom Tech & Services" />
-    <meta name="keywords" content="PPC, apnée du sommeil, CPAP, assistant vocal, Dom Tech Services" />
     
+    <!-- Métadonnées iOS optimisées -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e293b" />
+    <meta name="description" content="PPCare Voice - Assistant vocal PPC par Dom Tech & Services optimisé pour iOS" />
+    <meta name="keywords" content="PPC, apnée du sommeil, CPAP, assistant vocal, Dom Tech Services, iOS, iPad, iPhone" />
+    
+    <!-- Configuration PWA iOS -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo_domtech.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PPCare Voice" />
     
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- Permissions iOS -->
+    <meta http-equiv="Feature-Policy" content="microphone 'self'; speaker 'self'" />
+    <meta http-equiv="Permissions-Policy" content="microphone=(), speaker=()" />
     
+    <!-- Configuration mobile -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="mobile-web-app-capable" content="yes" />
     
-    <title>PPCare Voice - Assistant PPC</title>
+    <!-- Préchargement des ressources critiques -->
+    <link rel="preload" href="%PUBLIC_URL%/logo_domtech.png" as="image" />
     
+    <title>PPCare Voice - Assistant PPC iOS</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-      body {
+      /* CSS corrigé pour iOS Safari et iPad */
+      * {
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
         -webkit-touch-callout: none;
         -webkit-user-select: none;
-        -webkit-overflow-scrolling: touch;
-        position: fixed;
-        overflow: hidden;
-        width: 100%;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      
+      /* Permettre la sélection pour les zones de texte */
+      p, span, div[role="textbox"], textarea, input {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+      
+      html {
         height: 100%;
+        overflow: hidden;
+        -webkit-overflow-scrolling: touch;
+        /* Correction du problème de zoom sur iOS */
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        /* Support des Safe Areas iOS */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        
+        /* Prévention du rebond iOS */
+        position: fixed;
+        width: 100%;
+        
+        /* Police système optimisée */
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
       
       #root {
+        height: 100vh;
         width: 100%;
-        height: 100%;
         overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        
+        /* Correction pour iPad Safari */
+        position: relative;
+        min-height: -webkit-fill-available;
+        min-height: fill-available;
       }
       
+      /* Corrections spécifiques iPad */
+      @media (min-width: 768px) and (max-width: 1024px) {
+        #root {
+          /* Mode paysage iPad */
+          min-height: 100vh;
+        }
+        
+        /* Amélioration des boutons tactiles pour iPad */
+        button {
+          min-height: 44px;
+          min-width: 44px;
+        }
+      }
+      
+      /* Corrections spécifiques iPhone */
+      @media (max-width: 767px) {
+        /* Portrait iPhone */
+        #root {
+          min-height: -webkit-fill-available;
+        }
+        
+        /* Amélioration des zones tactiles */
+        button {
+          min-height: 48px;
+          min-width: 48px;
+        }
+      }
+      
+      /* Gestion du clavier virtuel iOS */
+      @supports (-webkit-touch-callout: none) {
+        #root {
+          height: -webkit-fill-available;
+        }
+      }
+      
+      /* Animations fluides pour iOS */
       * {
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+      }
+      
+      /* Boutons avec retour haptique iOS */
+      button {
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+        border: none;
+        outline: none;
         -webkit-tap-highlight-color: transparent;
+      }
+      
+      button:active {
+        -webkit-transform: scale(0.95);
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+      }
+      
+      /* Scrollbar personnalisée pour iOS */
+      ::-webkit-scrollbar {
+        width: 3px;
+        height: 3px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+      
+      /* Optimisations pour les gestes tactiles */
+      .touch-manipulation {
+        touch-action: manipulation;
+      }
+      
+      /* Préparation pour la synthèse vocale */
+      [data-speak] {
+        cursor: pointer;
+      }
+      
+      /* Mode sombre forcé pour iOS */
+      @media (prefers-color-scheme: dark) {
+        meta[name="theme-color"] {
+          content: "#1e293b";
+        }
+      }
+      
+      /* Corrections pour Safari iOS */
+      @supports (-webkit-appearance: none) {
+        input, textarea, select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+        }
+      }
+      
+      /* Performance GPU pour les animations */
+      .gpu-accelerate {
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-perspective: 1000;
+        perspective: 1000;
       }
     </style>
   </head>
   <body>
-    <noscript>Vous devez activer JavaScript pour utiliser PPCare Voice.</noscript>
-    <div id="root"></div>
+    <noscript>
+      <div style="text-align: center; padding: 50px; color: #333;">
+        <h2>JavaScript requis</h2>
+        <p>Vous devez activer JavaScript pour utiliser PPCare Voice.</p>
+        <p>Pour iOS Safari : Réglages > Safari > Avancé > JavaScript</p>
+      </div>
+    </noscript>
+    
+    <div id="root" class="gpu-accelerate touch-manipulation"></div>
+    
+    <!-- Script d'initialisation iOS -->
+    <script>
+      // Correction du viewport iOS dynamique
+      function setViewportHeight() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      }
+      
+      // Initialisation
+      setViewportHeight();
+      
+      // Mise à jour lors des changements d'orientation
+      window.addEventListener('resize', setViewportHeight);
+      window.addEventListener('orientationchange', () => {
+        setTimeout(setViewportHeight, 100);
+      });
+      
+      // Prévention du zoom automatique iOS lors du focus
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        const meta = document.querySelector('meta[name="viewport"]');
+        meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+        
+        // Restaurer le zoom après focus
+        document.addEventListener('blur', function() {
+          meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes";
+        }, true);
+      }
+      
+      // Préchargement des API vocales iOS
+      if ('speechSynthesis' in window) {
+        // Forcer le chargement des voix
+        window.speechSynthesis.getVoices();
+        
+        // Écouter l'événement de changement des voix
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+          window.speechSynthesis.onvoiceschanged = function() {
+            console.log('Voix iOS chargées:', window.speechSynthesis.getVoices().length);
+          };
+        }
+      }
+      
+      // Préparation de la reconnaissance vocale
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        console.log('Reconnaissance vocale disponible sur iOS');
+      } else {
+        console.warn('Reconnaissance vocale non disponible');
+      }
+      
+      // Optimisation des performances iOS
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        // Service Worker pour la mise en cache (optionnel)
+        // navigator.serviceWorker.register('/sw.js');
+      }
+      
+      // Détection spécifique iPad
+      const isIPad = /iPad/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      
+      if (isIPad) {
+        document.body.classList.add('ipad-device');
+        console.log('iPad détecté - Optimisations activées');
+      }
+      
+      // Support de l'API Permissions pour iOS 15+
+      if ('permissions' in navigator) {
+        navigator.permissions.query({name: 'microphone'}).then(function(result) {
+          console.log('Permission microphone:', result.state);
+        }).catch(function(error) {
+          console.log('Permissions API non supportée:', error);
+        });
+      }
+    </script>
   </body>
 </html>
