@@ -538,16 +538,7 @@ const App = () => {
               </svg>
             </button>
 
-            <button
-              onClick={testSelectedVoice}
-              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
-              style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                border: '1px solid #34d399'
-              }}
-            >
-              Test Amélie
-            </button>
+
           </div>
         </div>
       </div>
@@ -613,22 +604,6 @@ const App = () => {
                 </svg>
                 {OPENAI_API_KEY ? 'Commencer avec Amélie' : 'Configuration requise'}
               </button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-              {quickActions.map((action, index) => (
-                <button
-                  key={index}
-                  className={`${action.color} p-6 rounded-2xl cursor-pointer hover:scale-105 transition-transform shadow-lg text-left ${
-                    !OPENAI_API_KEY ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  onClick={() => OPENAI_API_KEY && handleQuickAction(action.question)}
-                  disabled={!OPENAI_API_KEY}
-                  style={{ minHeight: '120px' }}
-                >
-                  <p className="text-white text-sm font-medium text-center">{action.text}</p>
-                </button>
-              ))}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
@@ -743,11 +718,9 @@ const App = () => {
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
-                    if (isListening) {
-                      stopListening();
-                    }
-                    setTranscript('');
+                    // Arrêter uniquement la synthèse vocale
                     speechSynthesis.cancel();
+                    console.log('Synthèse vocale interrompue');
                   }}
                   className="px-6 py-3 rounded-full text-white transition-colors"
                   style={{
@@ -755,7 +728,7 @@ const App = () => {
                     border: '1px solid #34d399'
                   }}
                 >
-                  {isListening ? 'Arrêter l\'écoute' : 'Effacer'}
+                  Arrêter l'écoute
                 </button>
                 
                 <button
@@ -775,17 +748,6 @@ const App = () => {
                   }}
                 >
                   Tout effacer
-                </button>
-                
-                <button
-                  onClick={testSelectedVoice}
-                  className="px-6 py-3 rounded-full text-white transition-colors"
-                  style={{
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                    border: '1px solid #fbbf24'
-                  }}
-                >
-                  Test Amélie
                 </button>
               </div>
             </div>
