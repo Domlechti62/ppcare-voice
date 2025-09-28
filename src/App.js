@@ -606,22 +606,18 @@ const App = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-green-400 mx-auto mb-2">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/>
-                </svg>
-                <p className="text-xl font-bold text-white">Voix Amélie</p>
-                <p className="text-blue-200 text-sm">Français canadien</p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
               <div className="bg-white/5 backdrop-blur rounded-xl p-6">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-blue-400 mx-auto mb-2">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                <p className="text-xl font-bold text-white">Qualité optimale</p>
-                <p className="text-blue-200 text-sm">Fini la voix nasillarde</p>
+                <p className="text-xl font-bold text-white mb-3">Comment utiliser PPCare Voice ?</p>
+                <div className="text-left text-blue-200 text-sm space-y-2">
+                  <p>• Cliquez pour démarrer une conversation</p>
+                  <p>• Posez vos questions (masques, machines PPC, difficultés d'utilisation ou d'adaptation...)</p>
+                  <p>• Amélie vous répond</p>
+                  <p>• Utilisez "Arrêter l'écoute" pour interrompre l'audio</p>
+                </div>
               </div>
               <div className="bg-white/5 backdrop-blur rounded-xl p-6">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-yellow-400 mx-auto mb-2">
@@ -755,8 +751,18 @@ const App = () => {
         )}
 
         <div className="text-center text-blue-200 text-xs py-4 border-t border-white/10">
-          <p>PPCare Voice - Version finale optimisée Amélie fr-CA • Qualité vocale premium</p>
-          <p>Développé par Dom Tech & Services</p>
+          <p className="mb-2">PPCare Voice - Version finale optimisée Amélie</p>
+          <div className="space-y-1">
+            <p>Développé par Dom Tech & Services</p>
+            <div className="flex justify-center space-x-4 text-blue-300">
+              <a href="mailto:contact@dom-tech-services.fr" className="hover:text-white transition-colors">
+                contact@dom-tech-services.fr
+              </a>
+              <a href="https://www.dom-tech-services.fr/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                www.dom-tech-services.fr
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
