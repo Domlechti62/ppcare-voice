@@ -148,7 +148,7 @@ const App = () => {
   // Test de la voix sélectionnée - FONCTION RESTAURÉE
   const testSelectedVoice = () => {
     initializeAudioContext();
-    speakText("Bonjour, je suis Amélie, votre assistante PPC avec une voix française de qualité optimale.");
+    speakText("Bonjour, je suis Amélie, votre assistante PPC");
   };
 
   const initVoices = () => {
@@ -758,4 +758,5 @@ const App = () => {
 };
 
 export default App;
+
 
