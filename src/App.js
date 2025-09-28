@@ -130,7 +130,12 @@ const App = () => {
     console.log('Tentative synthèse Azure Speech...');
     
     try {
-      setIsSpeaking(true);
+      // Pour les tests silencieux de pré-initialisation
+      if (text === 'test') {
+        setIsSpeaking(false);
+      } else {
+        setIsSpeaking(true);
+      }
       
       // Configuration de la requête Azure avec voix française premium
       const ssml = `
@@ -162,7 +167,14 @@ const App = () => {
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       
-      // Gestion des événements audio
+      // Pour les tests silencieux, on ne joue pas l'audio
+      if (text === 'test') {
+        URL.revokeObjectURL(audioUrl);
+        console.log('Azure Speech: pré-initialisation réussie');
+        return true;
+      }
+      
+      // Gestion des événements audio pour la lecture normale
       audio.onplay = () => {
         console.log('Azure Speech: lecture démarrée');
         setIsSpeaking(true);
@@ -243,10 +255,37 @@ const App = () => {
     }
   };
 
-  // Test de la voix sélectionnée - FONCTION RESTAURÉE
+  // MISE À JOUR : Test de la voix avec Azure ou native
   const testSelectedVoice = () => {
     initializeAudioContext();
-    speakText("Bonjour, je suis Amélie, votre assistante PPC");
+    speakText("Bonjour, je suis votre assistante PPC avec la nouvelle synthèse vocale Azure de qualité premium");
+  };
+
+  // MISE À JOUR : Fonction d'arrêt pour gérer les deux types de synthèse
+  const stopAllSpeech = () => {
+    // Arrêter synthèse native
+    speechSynthesis.cancel();
+    
+    // Arrêter tous les éléments audio (Azure)
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    
+    setIsSpeaking(false);
+    console.log('Toute synthèse vocale interrompue');
+  };
+
+  // MISE À JOUR : Indicateur de statut vocal amélioré
+  const getVoiceStatusInfo = () => {
+    if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION) {
+      return `Azure Speech (Denise Neural) - Qualité premium`;
+    } else if (selectedVoice) {
+      return `${selectedVoice.name} - Qualité standard`;
+    } else {
+      return 'Voix par défaut - Qualité basique';
+    }
   };
 
   const initVoices = () => {
@@ -271,10 +310,28 @@ const App = () => {
     }
   };
 
+  // NOUVEAU : Pré-initialisation d'Azure Speech pour iOS
+  const initializeAzureSpeech = async () => {
+    if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION && isIOS) {
+      try {
+        console.log('Pré-initialisation Azure Speech pour iOS...');
+        // Test silencieux pour "réveiller" Azure Speech
+        await speakWithAzure('test');
+      } catch (error) {
+        console.log('Pré-initialisation Azure terminée');
+      }
+    }
+  };
+
   useEffect(() => {
     initVoices();
     if (speechSynthesis.onvoiceschanged !== undefined) {
       speechSynthesis.onvoiceschanged = initVoices;
+    }
+    
+    // NOUVEAU : Initialiser Azure dès le chargement sur iOS
+    if (isIOS) {
+      setTimeout(() => initializeAzureSpeech(), 1000);
     }
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -499,7 +556,8 @@ const App = () => {
       setConversationHistory([assistantMessage]);
       
       if (speechEnabled) {
-        setTimeout(() => speakText(welcomeMessage), 1000);
+        // CORRECTION iOS : Délai plus long pour assurer qu'Azure soit prêt
+        setTimeout(() => speakText(welcomeMessage), 2000);
       }
     }, 500);
   };
@@ -562,7 +620,7 @@ const App = () => {
             <div>
               <h1 className="text-2xl font-bold">PPCare Voice</h1>
               <p className="text-green-400 text-xs">
-                {isIOS ? (isIPad ? 'iPad' : 'iPhone') : 'PC'} • {voiceInfo}
+                {isIOS ? (isIPad ? 'iPad' : 'iPhone') : 'PC'} • {getVoiceStatusInfo()}
               </p>
             </div>
           </div>
@@ -634,7 +692,7 @@ const App = () => {
             OPENAI_API_KEY ? 'text-green-200' : 'text-red-200'
           }`}>
             {OPENAI_API_KEY 
-              ? `Voix optimisée: ${selectedVoice?.name || 'Chargement...'} • Audio: ${audioInitialized ? 'Activé' : 'Cliquez pour activer'} • Plateforme: ${isIOS ? (isIPad ? 'iPad Safari' : 'iPhone Safari') : 'Desktop'}`
+              ? `Voix optimisée: ${getVoiceStatusInfo()} • Audio: ${audioInitialized ? 'Activé' : 'Cliquez pour activer'} • Plateforme: ${isIOS ? (isIPad ? 'iPad Safari' : 'iPhone Safari') : 'Desktop'}`
               : 'Configurez la variable d\'environnement REACT_APP_OPENAI_API_KEY dans Vercel.'
             }
           </p>
@@ -828,9 +886,8 @@ const App = () => {
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
-                    speechSynthesis.cancel();
-                    setIsSpeaking(false);
-                    console.log('Synthèse vocale interrompue');
+                    stopAllSpeech();
+                    console.log('Toute synthèse vocale interrompue');
                   }}
                   className="px-6 py-3 rounded-full text-white transition-all button-control button-hover-animation"
                   style={{
@@ -849,13 +906,12 @@ const App = () => {
                     border: '1px solid #fbbf24'
                   }}
                 >
-                  Test Amélie
+                  Test Azure
                 </button>
                 
                 <button
                   onClick={() => {
-                    speechSynthesis.cancel();
-                    setIsSpeaking(false);
+                    stopAllSpeech();
                     setConversationHistory([]);
                     setResponse('');
                     setTranscript('');
