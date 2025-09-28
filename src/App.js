@@ -14,6 +14,7 @@ const App = () => {
   const [voiceInfo, setVoiceInfo] = useState('Chargement...');
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(false); // NOUVEAU: État de synthèse vocale
   
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
@@ -102,7 +103,7 @@ const App = () => {
     }
   };
 
-  // FONCTION OPTIMISÉE : Synthèse avec Amélie fr-CA
+  // FONCTION OPTIMISÉE : Synthèse avec Amélie fr-CA + État de parole
   const speakText = (text) => {
     if (!speechEnabled) return;
     
@@ -134,14 +135,27 @@ const App = () => {
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      utterance.onstart = () => console.log('Synthèse démarrée');
-      utterance.onend = () => console.log('Synthèse terminée');
-      utterance.onerror = (e) => console.error('Erreur synthèse:', e.error);
+      // NOUVEAU: Gestion des états de synthèse vocale
+      utterance.onstart = () => {
+        console.log('Synthèse démarrée');
+        setIsSpeaking(true);
+      };
+      
+      utterance.onend = () => {
+        console.log('Synthèse terminée');
+        setIsSpeaking(false);
+      };
+      
+      utterance.onerror = (e) => {
+        console.error('Erreur synthèse:', e.error);
+        setIsSpeaking(false);
+      };
       
       speechSynthesis.speak(utterance);
       
     } catch (error) {
       console.error('Erreur synthèse vocale:', error);
+      setIsSpeaking(false);
     }
   };
 
@@ -414,6 +428,7 @@ const App = () => {
     setResponse('');
     setTranscript('');
     setIsProcessing(false);
+    setIsSpeaking(false); // NOUVEAU: Reset état synthèse
     clearTimeout(silenceTimerRef.current);
     
     if (recognitionRef.current) {
@@ -444,7 +459,7 @@ const App = () => {
             {conversationActive && (
               <button
                 onClick={returnToHome}
-                className="bg-red-500 hover:bg-red-600 p-4 rounded-full transition-all transform hover:scale-105 shadow-lg mr-2"
+                className="bg-red-500 hover:bg-red-600 p-4 rounded-full transition-all transform hover:scale-105 shadow-lg mr-2 button-hover-animation"
                 title="Retour à l'accueil"
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white">
@@ -453,7 +468,7 @@ const App = () => {
               </button>
             )}
             
-            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/10">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/10 logo-container">
               <img 
                 src="/logo_domtech.png" 
                 alt="Dom Tech & Services" 
@@ -469,24 +484,26 @@ const App = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm ${
+            {/* Indicateur de statut avec animation améliorée */}
+            <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm transition-all duration-500 ${
               connectionStatus === 'connected' 
                 ? 'bg-green-500/20 text-green-400' 
                 : 'bg-red-500/20 text-red-400'
             }`}>
-              <div className={`w-2 h-2 rounded-full ${
+              <div className={`w-2 h-2 rounded-full status-indicator ${
                 connectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'
-              } animate-pulse`}></div>
+              }`}></div>
               <span>{connectionStatus === 'connected' ? 'OK' : 'Erreur'}</span>
             </div>
             
+            {/* Bouton synthèse vocale avec état visuel */}
             <button
               onClick={() => setSpeechEnabled(!speechEnabled)}
-              className={`p-4 rounded-full transition-all ${
+              className={`p-4 rounded-full transition-all duration-300 button-hover-animation ${
                 speechEnabled 
                   ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
                   : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
-              }`}
+              } ${isSpeaking ? 'speaking-animation' : ''}`}
               title={speechEnabled ? `Voix: ${selectedVoice?.name || 'Par défaut'}` : 'Synthèse désactivée'}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -505,7 +522,7 @@ const App = () => {
             {/* BOUTON TEST AMÉLIE RESTAURÉ */}
             <button
               onClick={testSelectedVoice}
-              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs"
+              className="px-3 py-2 rounded-full text-white transition-all hover:scale-105 text-xs button-hover-animation"
               style={{
                 background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                 border: '1px solid #fbbf24'
@@ -519,7 +536,7 @@ const App = () => {
 
       <div className="max-w-4xl mx-auto px-6">
         {/* Configuration */}
-        <div className={`border rounded-xl p-4 mb-6 ${
+        <div className={`border rounded-xl p-4 mb-6 fade-in ${
           OPENAI_API_KEY 
             ? 'bg-green-900/20 border-green-500/30' 
             : 'bg-red-900/20 border-red-500/30'
@@ -540,29 +557,30 @@ const App = () => {
         </div>
 
         {!conversationActive ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 fade-in">
             <div className="mb-12">
-              <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center relative">
+              {/* Logo principal avec animations améliorées */}
+              <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center relative main-logo">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="text-white">
                   <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/>
                   <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2"/>
                   <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2"/>
                   <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                <div className="absolute inset-0 rounded-full bg-green-400/30 animate-ping"></div>
+                <div className="absolute inset-0 rounded-full bg-green-400/30 logo-pulse"></div>
               </div>
               
-              <h2 className="text-4xl font-bold mb-4">PPCare Voice</h2>
-              <p className="text-xl text-blue-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+              <h2 className="text-4xl font-bold mb-4 slide-up">PPCare Voice</h2>
+              <p className="text-xl text-blue-200 mb-8 max-w-2xl mx-auto leading-relaxed slide-up delay-200">
                 Assistant vocal PPC avec voix Amélie optimisée pour {isIOS ? 'iOS' : 'tous les appareils'}.
               </p>
               
               <button
                 onClick={startConversation}
                 disabled={!OPENAI_API_KEY}
-                className={`px-8 py-4 rounded-full text-xl font-medium transition-all transform shadow-lg ${
+                className={`px-8 py-4 rounded-full text-xl font-medium transition-all transform shadow-lg main-button slide-up delay-400 ${
                   OPENAI_API_KEY
-                    ? 'hover:scale-105 bg-gradient-from-green-500 to-green-600 border-green-400' 
+                    ? 'hover:scale-105 bg-gradient-from-green-500 to-green-600 border-green-400 button-ready' 
                     : 'opacity-50 cursor-not-allowed bg-gray-500'
                 }`}
                 style={{
@@ -580,9 +598,9 @@ const App = () => {
               </button>
             </div>
 
-            {/* MODE D'EMPLOI ET CADRE UNIVERSEL */}
+            {/* MODE D'EMPLOI avec animations d'entrée */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
-              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
+              <div className="bg-white/5 backdrop-blur rounded-xl p-6 card-hover slide-up delay-600">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-blue-400 mx-auto mb-2">
                   <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" strokeWidth="2"/>
                 </svg>
@@ -594,7 +612,7 @@ const App = () => {
                   <p>• Utilisez "Arrêter l'écoute" pour interrompre l'audio</p>
                 </div>
               </div>
-              <div className="bg-white/5 backdrop-blur rounded-xl p-6">
+              <div className="bg-white/5 backdrop-blur rounded-xl p-6 card-hover slide-up delay-800">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-yellow-400 mx-auto mb-2">
                   <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/>
                 </svg>
@@ -604,18 +622,20 @@ const App = () => {
             </div>
           </div>
         ) : (
-          // Interface de conversation
+          // Interface de conversation avec animations
           <div className="py-6">
-            <div className="bg-white/5 backdrop-blur rounded-2xl p-6 mb-6 min-h-[400px] max-h-[500px] overflow-y-auto">
+            <div className="bg-white/5 backdrop-blur rounded-2xl p-6 mb-6 min-h-[400px] max-h-[500px] overflow-y-auto conversation-container">
               {conversationHistory.length === 0 ? (
                 <div className="text-center text-blue-200 py-8">
-                  <p>Conversation initialisée...</p>
+                  <div className="typing-indicator">
+                    <p>Conversation initialisée...</p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {conversationHistory.map((msg, index) => (
-                    <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`lg:max-w-md p-4 rounded-2xl ${
+                    <div key={index} className={`flex message-animation ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`} style={{animationDelay: `${index * 0.1}s`}}>
+                      <div className={`lg:max-w-md p-4 rounded-2xl message-bubble ${
                         msg.type === 'user' 
                           ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' 
                           : 'bg-white/10 text-white backdrop-blur'
@@ -633,8 +653,9 @@ const App = () => {
               )}
             </div>
 
+            {/* Zone de transcription avec animation */}
             {transcript && (
-              <div className="bg-blue-500/20 backdrop-blur rounded-xl p-4 mb-4 border border-blue-400/30">
+              <div className="bg-blue-500/20 backdrop-blur rounded-xl p-4 mb-4 border border-blue-400/30 listening-animation">
                 <p className="text-blue-400 text-sm font-medium mb-2">Je vous écoute...</p>
                 <p className="text-white leading-relaxed">{transcript}</p>
               </div>
@@ -642,28 +663,30 @@ const App = () => {
 
             <div className="text-center">
               {isProcessing ? (
+                // Animation de traitement optimisée
                 <div className="py-6">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center processing-animation">
                     <div className="flex space-x-1">
-                      <div className="w-3 h-3 bg-white rounded-full animate-bounce"></div>
-                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-3 h-3 bg-white rounded-full dot-bounce"></div>
+                      <div className="w-3 h-3 bg-white rounded-full dot-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-3 h-3 bg-white rounded-full dot-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
                   <p className="text-blue-200">Amélie réfléchit...</p>
                 </div>
               ) : (
                 <div className="py-4">
+                  {/* Bouton microphone principal avec animations contextuelles */}
                   <button
                     onClick={toggleListening}
                     disabled={!OPENAI_API_KEY}
-                    className={`w-24 h-24 rounded-full transition-all transform shadow-2xl ${
+                    className={`w-24 h-24 rounded-full transition-all transform shadow-2xl microphone-button ${
                       !OPENAI_API_KEY 
                         ? 'bg-gray-500 opacity-50 cursor-not-allowed'
                         : isListening 
-                          ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-110' 
-                          : 'bg-gradient-to-r from-green-500 to-blue-600 hover:scale-105'
-                    }`}
+                          ? 'bg-red-500 hover:bg-red-600 listening-state' 
+                          : 'bg-gradient-to-r from-green-500 to-blue-600 hover:scale-105 idle-state'
+                    } ${isSpeaking ? 'speaking-response' : ''}`}
                   >
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="text-white mx-auto">
                       <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/>
@@ -673,28 +696,52 @@ const App = () => {
                     </svg>
                   </button>
                   
+                  {/* Indicateur visuel d'état avec animations */}
                   <div className="mt-4">
-                    <p className="text-lg text-blue-200 font-medium">
+                    <p className={`text-lg font-medium transition-all duration-500 ${
+                      !OPENAI_API_KEY 
+                        ? 'text-red-400'
+                        : isListening 
+                          ? 'text-green-400 listening-text' 
+                          : isSpeaking 
+                            ? 'text-blue-400 speaking-text'
+                            : 'text-blue-200'
+                    }`}>
                       {!OPENAI_API_KEY 
                         ? 'Configuration requise'
                         : isListening 
                           ? 'Amélie vous écoute...' 
-                          : 'Cliquez pour parler à Amélie'
+                          : isSpeaking
+                            ? 'Amélie vous parle...'
+                            : 'Cliquez pour parler à Amélie'
                       }
                     </p>
+                    
+                    {/* Indicateur visuel pour la synthèse vocale */}
+                    {isSpeaking && (
+                      <div className="mt-2 flex justify-center">
+                        <div className="sound-wave">
+                          <div className="wave-bar"></div>
+                          <div className="wave-bar"></div>
+                          <div className="wave-bar"></div>
+                          <div className="wave-bar"></div>
+                          <div className="wave-bar"></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
               
-              {/* BOUTONS AVEC TEST AMÉLIE RESTAURÉ */}
+              {/* BOUTONS AVEC ANIMATIONS AMÉLIORÉES */}
               <div className="flex justify-center space-x-4 mt-4">
                 <button
                   onClick={() => {
-                    // Arrêter uniquement la synthèse vocale
                     speechSynthesis.cancel();
+                    setIsSpeaking(false);
                     console.log('Synthèse vocale interrompue');
                   }}
-                  className="px-6 py-3 rounded-full text-white transition-colors"
+                  className="px-6 py-3 rounded-full text-white transition-all button-control button-hover-animation"
                   style={{
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     border: '1px solid #34d399'
@@ -705,7 +752,7 @@ const App = () => {
                 
                 <button
                   onClick={testSelectedVoice}
-                  className="px-6 py-3 rounded-full text-white transition-colors"
+                  className="px-6 py-3 rounded-full text-white transition-all button-control button-hover-animation"
                   style={{
                     background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                     border: '1px solid #fbbf24'
@@ -716,15 +763,15 @@ const App = () => {
                 
                 <button
                   onClick={() => {
-                    // Effacer toute la conversation et revenir à l'accueil
                     speechSynthesis.cancel();
+                    setIsSpeaking(false);
                     setConversationHistory([]);
                     setResponse('');
                     setTranscript('');
                     if (isListening) stopListening();
                     setConversationActive(false);
                   }}
-                  className="px-6 py-3 rounded-full text-white transition-colors"
+                  className="px-6 py-3 rounded-full text-white transition-all button-control button-hover-animation"
                   style={{
                     background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                     border: '1px solid #f87171'
@@ -737,16 +784,16 @@ const App = () => {
           </div>
         )}
 
-        {/* FOOTER REMONTÉ ET PLUS VISIBLE */}
-        <div className="text-center text-blue-200 text-sm py-6 mt-8 border-t border-white/10 bg-white/5 backdrop-blur rounded-t-xl">
+        {/* FOOTER avec animation */}
+        <div className="text-center text-blue-200 text-sm py-6 mt-8 border-t border-white/10 bg-white/5 backdrop-blur rounded-t-xl footer-fade">
           <p className="mb-3 text-base font-medium">PPCare Voice - Version finale optimisée Amélie</p>
           <div className="space-y-2">
             <p className="text-blue-300">Développé par Dom Tech & Services</p>
             <div className="flex justify-center space-x-6 text-blue-300">
-              <a href="mailto:contact@dom-tech-services.fr" className="hover:text-white transition-colors underline">
+              <a href="mailto:contact@dom-tech-services.fr" className="hover:text-white transition-colors underline link-hover">
                 contact@dom-tech-services.fr
               </a>
-              <a href="https://www.dom-tech-services.fr/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline">
+              <a href="https://www.dom-tech-services.fr/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline link-hover">
                 www.dom-tech-services.fr
               </a>
             </div>
@@ -758,4 +805,3 @@ const App = () => {
 };
 
 export default App;
-
