@@ -275,9 +275,26 @@ body {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
-/* Bouton principal avec animation spéciale */
+/* Bouton principal avec animation spéciale - CORRECTION VISIBILITÉ */
 .button-ready {
   animation: readyPulse 4s ease-in-out infinite;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  z-index: 10;
+  position: relative;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.main-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10;
 }
 
 @keyframes readyPulse {
