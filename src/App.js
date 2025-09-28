@@ -15,10 +15,19 @@ const App = () => {
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false); // NOUVEAU: État de synthèse vocale
+  const [azureVoice, setAzureVoice] = useState('fr-FR-DeniseNeural'); // NOUVEAU: Sélecteur voix Azure
   
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
   const isListeningRef = useRef(false);
+
+  // NOUVEAU: Voix féminines françaises Azure disponibles pour Amélie
+  const azureVoices = [
+    { name: 'fr-FR-DeniseNeural', label: 'Denise - Professionnelle' },
+    { name: 'fr-FR-EloiseNeural', label: 'Eloise - Dynamique' },
+    { name: 'fr-FR-JacquelineNeural', label: 'Jacqueline - Apaisante' },
+    { name: 'fr-CA-SylvieNeural', label: 'Sylvie - Québécoise' }
+  ];
 
   const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
   const AZURE_SPEECH_KEY = process.env.REACT_APP_AZURE_SPEECH_KEY;
@@ -258,7 +267,8 @@ const App = () => {
   // MISE À JOUR : Test de la voix avec Azure ou native
   const testSelectedVoice = () => {
     initializeAudioContext();
-    speakText("Bonjour, je suis votre assistante PPC avec la nouvelle synthèse vocale Azure de qualité premium");
+    const currentVoiceName = azureVoices.find(v => v.name === azureVoice)?.label || 'Azure';
+    speakText(`Bonjour, je suis Amélie avec la voix ${currentVoiceName}. Je suis votre assistante PPC personnalisée.`);
   };
 
   // MISE À JOUR : Fonction d'arrêt pour gérer les deux types de synthèse
@@ -277,10 +287,11 @@ const App = () => {
     console.log('Toute synthèse vocale interrompue');
   };
 
-  // MISE À JOUR : Indicateur de statut vocal amélioré
+  // MISE À JOUR : Indicateur de statut vocal amélioré avec voix sélectionnée
   const getVoiceStatusInfo = () => {
     if (AZURE_SPEECH_KEY && AZURE_SPEECH_REGION) {
-      return `Azure Speech (Denise Neural) - Qualité premium`;
+      const selectedAzureVoice = azureVoices.find(v => v.name === azureVoice);
+      return `Azure Speech (${selectedAzureVoice?.label || 'Denise'}) - Qualité premium`;
     } else if (selectedVoice) {
       return `${selectedVoice.name} - Qualité standard`;
     } else {
@@ -661,6 +672,28 @@ const App = () => {
               </svg>
             </button>
 
+            {/* NOUVEAU: Sélecteur de voix Azure pour Amélie */}
+            {AZURE_SPEECH_KEY && AZURE_SPEECH_REGION && (
+              <select
+                value={azureVoice}
+                onChange={(e) => setAzureVoice(e.target.value)}
+                className="px-3 py-2 rounded-full text-sm transition-all button-hover-animation"
+                style={{
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  border: '1px solid #a78bfa',
+                  color: 'white',
+                  appearance: 'none'
+                }}
+                title="Choisir la voix d'Amélie"
+              >
+                {azureVoices.map((voice) => (
+                  <option key={voice.name} value={voice.name} style={{ color: 'black' }}>
+                    {voice.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
             {/* BOUTON TEST AMÉLIE RESTAURÉ */}
             <button
               onClick={testSelectedVoice}
@@ -670,7 +703,7 @@ const App = () => {
                 border: '1px solid #fbbf24'
               }}
             >
-              Test Amélie
+              Test Voix
             </button>
           </div>
         </div>
@@ -906,7 +939,7 @@ const App = () => {
                     border: '1px solid #fbbf24'
                   }}
                 >
-                  Test Azure
+                  Test Voix
                 </button>
                 
                 <button
